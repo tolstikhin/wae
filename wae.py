@@ -592,7 +592,7 @@ class WAE(object):
                                rec_train, rec_test,
                                sample_gen,
                                Qz_train, Qz_test, Pz,
-                               'res_mb%05d_e%04d.png' % (epoch, it))
+                               'res_mb%05d_e%04d.png' % (it, epoch))
 
         # Save the final model
 

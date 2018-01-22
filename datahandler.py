@@ -22,6 +22,7 @@ datashapes = {}
 datashapes['mnist'] = [28, 28, 1]
 datashapes['cifar10'] = [32, 32, 3]
 datashapes['celebA'] = [64, 64, 3]
+datashapes['dsprites'] = [64, 64, 1]
 
 def _data_dir(opts):
     if opts['data_dir'].startswith("/"):

@@ -12,7 +12,7 @@ config_celebA['plot_num_pics'] = 30
 config_celebA['plot_num_cols'] = 5
 
 config_celebA['input_normalize_sym'] = True
-config_celebA['data_dir'] = '/Users/ilya/Sci/Tolstikhin/Code/adagan/celebA/datasets/celeba/img_align_celeba'
+config_celebA['data_dir'] = 'celebA/datasets/celeba/img_align_celeba'
 config_celebA['celebA_crop'] = 'closecrop' # closecrop, resizecrop
 
 config_celebA['optimizer'] = 'adam' # adam, sgd
@@ -129,3 +129,53 @@ config_celebA_small['e_num_layers'] = 3
 config_celebA_small['e_num_filters'] = 256
 config_celebA_small['print_every'] = 50
 config_celebA_small['lr_schedule'] = 'plateau'
+
+# dsprites config 
+config_dsprites = {}
+config_dsprites['dataset'] = 'dsprites'
+config_dsprites['verbose'] = True
+config_dsprites['save_every_epoch'] = 20
+config_dsprites['print_every'] = 500
+config_dsprites['work_dir'] = 'results_dsprites'
+config_dsprites['plot_num_pics'] = 400
+config_dsprites['plot_num_cols'] = 20
+
+config_dsprites['input_normalize_sym'] = False
+config_dsprites['data_dir'] = 'dsprites'
+
+config_dsprites['optimizer'] = 'adam' # adam, sgd
+config_dsprites['adam_beta1'] = 0.5
+config_dsprites['lr'] = 0.001
+config_dsprites['lr_adv'] = 0.0005
+config_dsprites['lr_schedule'] = 'manual' #manual, plateau, or a number
+config_dsprites['batch_size'] = 100
+config_dsprites['epoch_num'] = 100
+config_dsprites['init_std'] = 0.0099999
+config_dsprites['init_bias'] = 0.0
+config_dsprites['batch_norm'] = True
+config_dsprites['batch_norm_eps'] = 1e-05
+config_dsprites['batch_norm_decay'] = 0.9
+config_dsprites['conv_filters_dim'] = 4
+
+config_dsprites['e_pretrain'] = True
+config_dsprites['e_pretrain_sample_size'] = 1000
+config_dsprites['e_add_noise'] = True
+config_dsprites['e_num_filters'] = 1024
+config_dsprites['e_num_layers'] = 4
+config_dsprites['e_arch'] = 'dcgan' # mlp, dcgan, ali
+
+config_dsprites['g_num_filters'] = 1024
+config_dsprites['g_num_layers'] = 3
+config_dsprites['g_arch'] = 'dcgan_mod' # mlp, dcgan, dcgan_mod, ali
+
+config_dsprites['gan_p_trick'] = False
+config_dsprites['d_num_filters'] = 512
+config_dsprites['d_num_layers'] = 4
+
+config_dsprites['zdim'] = 10
+config_dsprites['pz'] = 'normal' # uniform, normal, sphere
+config_dsprites['cost'] = 'l2sq' #l2, l2sq, l1
+config_dsprites['pz_scale'] = 1.
+config_dsprites['z_test'] = 'mmd'
+config_dsprites['mmd_kernel'] = 'IMQ' # RBF, IMQ
+config_dsprites['lambda'] = 10.
