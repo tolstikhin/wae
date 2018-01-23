@@ -46,12 +46,14 @@ class WAE(object):
         self.encoded = encoder(opts, inputs=self.sample_points,
                                is_training=self.is_training)
         # Decode the points encoded above (i.e. reconstruct)
-        self.reconstructed = decoder(opts, noise=self.encoded,
-                               is_training=self.is_training)
+        self.reconstructed, self.reconstructed_logits = \
+                decoder(opts, noise=self.encoded,
+                        is_training=self.is_training)
         self.reconstructed.set_shape(self.sample_points.get_shape())
         # Decode the content of sample_noise
-        self.decoded = decoder(opts, reuse=True, noise=self.sample_noise,
-                               is_training=self.is_training)
+        self.decoded, self.decoded_logits = \
+                decoder(opts, reuse=True, noise=self.sample_noise,
+                        is_training=self.is_training)
 
         # -- Objectives, losses, penalties
 

@@ -57,9 +57,9 @@ def decoder(opts, noise, reuse=False, is_training=True):
                              np.prod(output_shape), 'h%d_lin' % (i + 1))
             out = tf.reshape(out, [-1] + list(output_shape))
             if opts['input_normalize_sym']:
-                return tf.nn.tanh(out)
+                return tf.nn.tanh(out), out
             else:
-                return tf.nn.sigmoid(out)
+                return tf.nn.sigmoid(out), out
         elif opts['g_arch'] in ['dcgan', 'dcgan_mod']:
             # Fully convolutional architecture similar to DCGAN
             res = dcgan_decoder(opts, noise, is_training, reuse)
@@ -190,9 +190,9 @@ def dcgan_decoder(opts, noise, is_training=False, reuse=False):
         last_h = ops.deconv2d(
             opts, layer_x, _out_shape, d_h=1, d_w=1, scope='hfinal_deconv')
     if opts['input_normalize_sym']:
-        return tf.nn.tanh(last_h)
+        return tf.nn.tanh(last_h), last_h
     else:
-        return tf.nn.sigmoid(last_h)
+        return tf.nn.sigmoid(last_h), last_h
 
 def ali_decoder(opts, noise, is_training=False, reuse=False):
     output_shape = datashapes[opts['dataset']]
@@ -237,9 +237,9 @@ def ali_decoder(opts, noise, is_training=False, reuse=False):
     layer_x = ops.conv2d(opts, layer_x, data_channels, d_h=1, d_w=1,
                          scope='conv2d_1x1_2', conv_filters_dim=1)
     if opts['input_normalize_sym']:
-        return tf.nn.tanh(layer_x)
+        return tf.nn.tanh(layer_x), layer_x
     else:
-        return tf.nn.sigmoid(layer_x)
+        return tf.nn.sigmoid(layer_x), layer_x
 
 def began_decoder(opts, noise, is_training=False, reuse=False):
 
@@ -271,9 +271,9 @@ def began_decoder(opts, noise, is_training=False, reuse=False):
     last_h = ops.conv2d(opts, layer_x, output_shape[-1],
                         d_h=1, d_w=1, scope='hfinal_conv')
     if opts['input_normalize_sym']:
-        return tf.nn.tanh(last_h)
+        return tf.nn.tanh(last_h), last_h
     else:
-        return tf.nn.sigmoid(last_h)
+        return tf.nn.sigmoid(last_h), last_h
 
 def z_adversary(opts, inputs, reuse=False):
     num_units = opts['d_num_filters']
