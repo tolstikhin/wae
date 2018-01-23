@@ -8,8 +8,9 @@ import tensorflow as tf
 
 flags = tf.app.flags
 flags.DEFINE_integer("zdim", 8, "Dimensionality of the latent space")
-flags.DEFINE_float("wae_lambda", 10., "POT regularization")
-flags.DEFINE_string("work_dir", 'results_mnist', "Working directory ['results']")
+flags.DEFINE_string("z_test", 'mmd', "Method of choice for verifying Pz=Qz")
+flags.DEFINE_float("wae_lambda", 10., "WAE regularization")
+flags.DEFINE_string("work_dir", 'results_mnist', "Working directory")
 flags.DEFINE_string("dataset", 'mnist', "mnist, celebA, ...")
 FLAGS = flags.FLAGS
 
@@ -25,6 +26,7 @@ def main():
         assert False, 'Unknown experiment configuration'
 
     opts['zdim'] = FLAGS.zdim
+    opts['z_test'] = FLAGS.z_test
     opts['work_dir'] = FLAGS.work_dir
     opts['lambda'] = FLAGS.wae_lambda
 
