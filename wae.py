@@ -592,7 +592,8 @@ class WAE(object):
                                rec_train, rec_test,
                                sample_gen,
                                Qz_train, Qz_test, Pz,
-                               'res_e%04d_mb%05d.png' % (it, epoch))
+                               losses_rec, losses_match,
+                               'res_e%04d_mb%05d.png' % (epoch, it))
 
         # Save the final model
 
@@ -608,16 +609,18 @@ def save_plots(opts, sample_train, sample_test,
                recon_train, recon_test,
                sample_gen,
                Qz_train, Qz_test, Pz,
+               losses_rec, losses_match,
                filename):
     """ Generates and saves the plot of the following layout:
         img1 | img2 | img3
-        img4 | ???? | img5
+        img4 | img6 | img5
 
         img1    -   test reconstructions
         img2    -   train reconstructions
         img3    -   samples
         img4    -   Qz vs Pz plots
         img5    -   real pics
+        img6    -   loss curves
 
     """
     num_pics = opts['plot_num_pics']
@@ -748,6 +751,16 @@ def save_plots(opts, sample_train, sample_test,
     plt.xlim(xmin, xmax)
     plt.ylim(ymin, ymax)
     plt.legend(loc='upper left')
+
+    # The loss curves
+    ax = plt.subplot(gs[1, 1])
+    x = np.arange(1, len(losses_rec) + 1)
+    y = np.log(np.abs(losses_rec))
+    plt.plot(x, y, linewidth=2, color='red', label='log(|rec loss|)')
+    y = np.log(np.abs(losses_match))
+    plt.plot(x, y, linewidth=2, color='blue', label='log(|match loss|)')
+    plt.grid(axis='y')
+    plt.legend(loc='upper right')
 
     # Saving
     utils.create_dir(opts['work_dir'])
