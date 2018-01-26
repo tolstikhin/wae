@@ -39,17 +39,37 @@ class WAE(object):
 
         self.add_model_placeholders()
         self.add_training_placeholders()
+        sample_size = tf.shape(self.sample_points)[0]
 
         # -- Transformation ops
 
         # Encode the content of sample_points placeholder
-        self.encoded = encoder(opts, inputs=self.sample_points,
-                               is_training=self.is_training)
+        if not opts['e_is_random']:
+            self.encoded = encoder(opts, inputs=self.sample_points,
+                                   is_training=self.is_training)
+        else:
+            enc_mean, enc_sigmas = encoder(opts, inputs=self.sample_points,
+                                   is_training=self.is_training)
+            if opts['verbose']:
+                # Debug the largest and smallest log variances
+                enc_sigmas = tf.Print(
+                    enc_sigmas,
+                    [tf.nn.top_k(tf.reshape(enc_sigmas, [-1]), 1).values[0]],
+                    'Maximal log sigmas:')
+                enc_sigmas = tf.Print(
+                    enc_sigmas,
+                    [-tf.nn.top_k(tf.reshape(-enc_sigmas, [-1]), 1).values[0]],
+                    'Minimal log sigmas:')
+
+            eps = tf.random_normal((sample_size, opts['zdim']),
+                                   0., 1., dtype=tf.float32)
+            self.encoded = enc_mean + tf.multiply(
+                eps, tf.sqrt(1e-8 + tf.exp(enc_sigmas)))
+
         # Decode the points encoded above (i.e. reconstruct)
         self.reconstructed, self.reconstructed_logits = \
                 decoder(opts, noise=self.encoded,
                         is_training=self.is_training)
-        self.reconstructed.set_shape(self.sample_points.get_shape())
         # Decode the content of sample_noise
         self.decoded, self.decoded_logits = \
                 decoder(opts, reuse=True, noise=self.sample_noise,

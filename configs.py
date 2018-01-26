@@ -29,6 +29,7 @@ config_celebA['batch_norm_eps'] = 1e-05
 config_celebA['batch_norm_decay'] = 0.9
 config_celebA['conv_filters_dim'] = 5
 
+config_celebA['e_is_random'] = False
 config_celebA['e_pretrain'] = True
 config_celebA['e_pretrain_sample_size'] = 256
 config_celebA['e_add_noise'] = True
@@ -80,6 +81,7 @@ config_mnist['batch_norm_eps'] = 1e-05
 config_mnist['batch_norm_decay'] = 0.9
 config_mnist['conv_filters_dim'] = 4
 
+config_mnist['e_is_random'] = False
 config_mnist['e_pretrain'] = True
 config_mnist['e_pretrain_sample_size'] = 1000
 config_mnist['e_add_noise'] = True
@@ -105,7 +107,7 @@ config_mnist['lambda'] = 10.
 
 # Toy MNIST experiment
 config_mnist_small = copy.deepcopy(config_mnist)
-config_mnist_small['zdim'] = 2
+config_mnist_small['zdim'] = 30
 config_mnist_small['z_test'] = 'gan'
 config_mnist_small['g_arch'] = 'mlp'
 config_mnist_small['e_arch'] = 'mlp'
@@ -118,6 +120,9 @@ config_mnist_small['save_every_epoch'] = 1
 config_mnist_small['lr_schedule'] = 'plateau'
 config_mnist_small['epoch_num'] = 3
 
+config_mnist_small['e_add_noise'] = False
+config_mnist_small['e_is_random'] = True
+
 # Toy celebA experiment
 config_celebA_small = copy.deepcopy(config_celebA)
 config_celebA_small['zdim'] = 2
@@ -129,6 +134,7 @@ config_celebA_small['e_num_layers'] = 3
 config_celebA_small['e_num_filters'] = 256
 config_celebA_small['print_every'] = 50
 config_celebA_small['lr_schedule'] = 'plateau'
+
 
 # dsprites config 
 config_dsprites = {}
@@ -157,6 +163,7 @@ config_dsprites['batch_norm_eps'] = 1e-05
 config_dsprites['batch_norm_decay'] = 0.9
 config_dsprites['conv_filters_dim'] = 4
 
+config_dsprites['e_is_random'] = False
 config_dsprites['e_pretrain'] = True
 config_dsprites['e_pretrain_sample_size'] = 1000
 config_dsprites['e_add_noise'] = True

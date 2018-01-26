@@ -24,8 +24,14 @@ def encoder(opts, inputs, reuse=False, is_training=False):
                     hi = ops.batch_norm(opts, hi, is_training,
                                         reuse, scope='h%d_bn' % i)
                 hi = tf.nn.relu(hi)
-            res = ops.linear(opts, hi, opts['zdim'], 'hfinal_lin')
-            return res
+            if not opts['e_is_random']:
+                res = ops.linear(opts, hi, opts['zdim'], 'hfinal_lin')
+                return res
+            else:
+                mean = ops.linear(opts, hi, opts['zdim'], 'mean_lin')
+                log_sigmas = ops.linear(opts, hi,
+                                        opts['zdim'], 'log_sigmas_lin')
+                return mean, log_sigmas
         elif opts['e_arch'] == 'dcgan':
             # Fully convolutional architecture similar to DCGAN
             return dcgan_encoder(opts, inputs, is_training, reuse)
@@ -86,8 +92,14 @@ def dcgan_encoder(opts, inputs, is_training=False, reuse=False):
             layer_x = ops.batch_norm(opts, layer_x, is_training,
                                      reuse, scope='h%d_bn' % i)
         layer_x = tf.nn.relu(layer_x)
-    res = ops.linear(opts, layer_x, opts['zdim'], scope='hfinal_lin')
-    return res
+    if not opts['e_is_random']:
+        res = ops.linear(opts, layer_x, opts['zdim'], scope='hfinal_lin')
+        return res
+    else:
+        mean = ops.linear(opts, layer_x, opts['zdim'], scope='mean_lin')
+        log_sigmas = ops.linear(opts, layer_x,
+                                opts['zdim'], scope='log_sigmas_lin')
+        return mean, log_sigmas
 
 def ali_encoder(opts, inputs, is_training=False, reuse=False):
     num_units = opts['e_num_filters']
@@ -126,8 +138,14 @@ def ali_encoder(opts, inputs, is_training=False, reuse=False):
     layer_x = ops.conv2d(opts, layer_x, num_units / 2, d_h=1, d_w=1,
                          scope='conv2d_1x1_2', conv_filters_dim=1)
 
-    res = ops.linear(opts, layer_x, opts['zdim'], scope='hlast_lin')
-    return res
+    if not opts['e_is_random']:
+        res = ops.linear(opts, layer_x, opts['zdim'], scope='hlast_lin')
+        return res
+    else:
+        mean = ops.linear(opts, layer_x, opts['zdim'], scope='mean_lin')
+        log_sigmas = ops.linear(opts, layer_x,
+                                opts['zdim'], scope='log_sigmas_lin')
+        return mean, log_sigmas
 
 def began_encoder(opts, inputs, is_training=False, reuse=False):
     num_units = opts['e_num_filters']
@@ -151,8 +169,14 @@ def began_encoder(opts, inputs, is_training=False, reuse=False):
                 layer_x = ops.downsample(layer_x, scope='h%d_maxpool' % i,
                                          reuse=reuse)
     # Tensor should be [N, 8, 8, filters] at this point
-    res = ops.linear(opts, layer_x, opts['zdim'], scope='hfinal_lin')
-    return res
+    if not opts['e_is_random']:
+        res = ops.linear(opts, layer_x, opts['zdim'], scope='hfinal_lin')
+        return res
+    else:
+        mean = ops.linear(opts, layer_x, opts['zdim'], scope='mean_lin')
+        log_sigmas = ops.linear(opts, layer_x,
+                                opts['zdim'], scope='log_sigmas_lin')
+        return mean, log_sigmas
 
 
 def dcgan_decoder(opts, noise, is_training=False, reuse=False):
@@ -232,7 +256,8 @@ def ali_decoder(opts, noise, is_training=False, reuse=False):
     layer_x = ops.conv2d(opts, layer_x, num_units / 8, d_h=1, d_w=1,
                          scope='conv2d_1x1', conv_filters_dim=1)
     if opts['batch_norm']:
-        layer_x = ops.batch_norm(opts, layer_x, is_training, reuse, scope='hfinal_bn')
+        layer_x = ops.batch_norm(opts, layer_x,
+                                 is_training, reuse, scope='hfinal_bn')
     layer_x = ops.lrelu(layer_x, 0.1)
     layer_x = ops.conv2d(opts, layer_x, data_channels, d_h=1, d_w=1,
                          scope='conv2d_1x1_2', conv_filters_dim=1)

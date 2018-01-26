@@ -20,6 +20,8 @@ def main():
         opts = configs.config_celebA
     elif FLAGS.dataset == 'mnist':
         opts = configs.config_mnist
+    elif FLAGS.dataset == 'mnist_small':
+        opts = configs.config_mnist_small
     elif FLAGS.dataset == 'dsprites':
         opts = configs.config_dsprites
     else:
