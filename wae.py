@@ -776,10 +776,12 @@ def save_plots(opts, sample_train, sample_test,
 
     # The loss curves
     ax = plt.subplot(gs[1, 1])
-    x = np.arange(1, len(losses_rec) + 1)
-    y = np.log(np.abs(losses_rec))
+    total_num = len(losses_rec)
+    x_step = max(total_num / 100, 1)
+    x = np.arange(1, len(losses_rec) + 1, x_step)
+    y = np.log(np.abs(losses_rec[::x_step]))
     plt.plot(x, y, linewidth=2, color='red', label='log(|rec loss|)')
-    y = np.log(np.abs(losses_match))
+    y = np.log(np.abs(losses_match[::x_step]))
     plt.plot(x, y, linewidth=2, color='blue', label='log(|match loss|)')
     plt.grid(axis='y')
     plt.legend(loc='upper right')
