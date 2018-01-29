@@ -454,6 +454,8 @@ class WAE(object):
         losses = []
         losses_rec = []
         losses_match = []
+        encoding_changes = []
+        enc_test_prev = None
         batches_num = data.num_points / opts['batch_size']
         train_size = data.num_points
         self.num_pics = opts['plot_num_pics']
@@ -566,6 +568,15 @@ class WAE(object):
                         feed_dict={self.sample_points: data.test_data[:self.num_pics],
                                    self.is_training: False})
 
+                    if enc_test_prev is not None:
+                        changes = np.mean((enc_test - enc_test_prev) ** 2.)
+                        encoding_changes.append(changes)
+                    else:
+                        changes = np.mean((enc_test) ** 2.)
+                        encoding_changes.append(changes)
+
+                    enc_test_prev = enc_test
+
                     # Auto-encoding training images
 
                     [loss_rec_train, enc_train, rec_train] = self.sess.run(
@@ -614,7 +625,7 @@ class WAE(object):
                                rec_train, rec_test,
                                sample_gen,
                                Qz_train, Qz_test, Pz,
-                               losses_rec, losses_match,
+                               losses_rec, losses_match, encoding_changes,
                                'res_e%04d_mb%05d.png' % (epoch, it))
 
         # Save the final model
@@ -631,7 +642,7 @@ def save_plots(opts, sample_train, sample_test,
                recon_train, recon_test,
                sample_gen,
                Qz_train, Qz_test, Pz,
-               losses_rec, losses_match,
+               losses_rec, losses_match, encoding_changes,
                filename):
     """ Generates and saves the plot of the following layout:
         img1 | img2 | img3
@@ -783,6 +794,11 @@ def save_plots(opts, sample_train, sample_test,
     plt.plot(x, y, linewidth=2, color='red', label='log(|rec loss|)')
     y = np.log(np.abs(losses_match[::x_step]))
     plt.plot(x, y, linewidth=2, color='blue', label='log(|match loss|)')
+    if len(encoding_changes) > 0:
+        x = np.arange(1, len(losses_rec) + 1)
+        y = np.log(encoding_changes)
+        x_step = len(x) / len(y)
+        plt.plot(x[::x_step], y, linewidth=2, color='green', label='log(encoding changes)')
     plt.grid(axis='y')
     plt.legend(loc='upper right')
 

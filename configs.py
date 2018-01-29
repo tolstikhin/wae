@@ -17,11 +17,11 @@ config_celebA['celebA_crop'] = 'closecrop' # closecrop, resizecrop
 
 config_celebA['optimizer'] = 'adam' # adam, sgd
 config_celebA['adam_beta1'] = 0.5
-config_celebA['lr'] = 0.0001
-config_celebA['lr_adv'] = 0.00005
+config_celebA['lr'] = 0.001 #0.001 for WAE-MMD and 0.0003 for WAE-GAN
+config_celebA['lr_adv'] = 0.001
 config_celebA['lr_schedule'] = 'plateau' #manual, plateau, or a number
-config_celebA['batch_size'] = 64
-config_celebA['epoch_num'] = 300
+config_celebA['batch_size'] = 100
+config_celebA['epoch_num'] = 100
 config_celebA['init_std'] = 0.0099999
 config_celebA['init_bias'] = 0.0
 config_celebA['batch_norm'] = True
@@ -51,7 +51,7 @@ config_celebA['cost'] = 'l2sq' #l2, l2sq, l1
 config_celebA['pz_scale'] = 1.
 config_celebA['z_test'] = 'mmd'
 config_celebA['mmd_kernel'] = 'IMQ' # RBF, IMQ
-config_celebA['lambda'] = 10.
+config_celebA['lambda'] = 100.
 
 # MNIST config from ICLR paper
 
@@ -118,7 +118,7 @@ config_mnist_small['e_num_filters'] = 256
 config_mnist_small['print_every'] = 500
 config_mnist_small['save_every_epoch'] = 1
 config_mnist_small['lr_schedule'] = 'plateau'
-config_mnist_small['epoch_num'] = 3
+config_mnist_small['epoch_num'] = 10
 
 config_mnist_small['e_add_noise'] = False
 config_mnist_small['e_is_random'] = True
