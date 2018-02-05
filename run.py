@@ -1,18 +1,26 @@
 import os
+import sys
 import logging
+import argparse
 import configs
 from wae import WAE
 from datahandler import DataHandler
 import utils
-import tensorflow as tf
 
-flags = tf.app.flags
-flags.DEFINE_integer("zdim", 8, "Dimensionality of the latent space")
-flags.DEFINE_string("z_test", 'mmd', "Method of choice for verifying Pz=Qz")
-flags.DEFINE_float("wae_lambda", 10., "WAE regularization")
-flags.DEFINE_string("work_dir", 'results_test', "Working directory")
-flags.DEFINE_string("dataset", 'mnist', "mnist, celebA, ...")
-FLAGS = flags.FLAGS
+parser = argparse.ArgumentParser()
+parser.add_argument("--dataset", default='mnist_small',
+                    help='dataset [mnist/celebA/dsprites]')
+parser.add_argument("--zdim",
+                    help='dimensionality of the latent space',
+                    type=int)
+parser.add_argument("--z_test",
+                    help='method of choice for verifying Pz=Qz [mmd/gan]')
+parser.add_argument("--wae_lambda", help='WAE regularizer', type=int)
+parser.add_argument("--work_dir")
+parser.add_argument("--e_is_random", help="use random encoders",
+                    action="store_true")
+
+FLAGS = parser.parse_args()
 
 def main():
 
@@ -29,10 +37,19 @@ def main():
     else:
         assert False, 'Unknown experiment configuration'
 
-    opts['zdim'] = FLAGS.zdim
-    opts['z_test'] = FLAGS.z_test
-    opts['work_dir'] = FLAGS.work_dir
-    opts['lambda'] = FLAGS.wae_lambda
+    if FLAGS.zdim:
+        opts['zdim'] = FLAGS.zdim
+    if FLAGS.z_test:
+        opts['z_test'] = FLAGS.z_test
+    if FLAGS.work_dir:
+        opts['work_dir'] = FLAGS.work_dir
+    if FLAGS.wae_lambda:
+        opts['lambda'] = FLAGS.wae_lambda
+    if FLAGS.e_is_random:
+        opts['e_is_random'] = True
+        opts['e_add_noise'] = False
+    if opts['e_is_random'] and opts['e_add_noise']:
+        assert False, 'can not combine random encoder with additive noise'
 
     if opts['verbose']:
         logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(message)s')
