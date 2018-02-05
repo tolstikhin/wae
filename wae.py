@@ -45,11 +45,13 @@ class WAE(object):
 
         # Encode the content of sample_points placeholder
         if not opts['e_is_random']:
+            self.enc_mean, self.enc_sigmas = None, None
             self.encoded = encoder(opts, inputs=self.sample_points,
                                    is_training=self.is_training)
         else:
             enc_mean, enc_sigmas = encoder(opts, inputs=self.sample_points,
                                    is_training=self.is_training)
+            self.enc_mean, self.enc_sigmas = enc_mean, enc_sigmas
             if opts['verbose']:
                 # Debug the largest and smallest log variances
                 enc_sigmas = tf.Print(
@@ -70,6 +72,7 @@ class WAE(object):
         self.reconstructed, self.reconstructed_logits = \
                 decoder(opts, noise=self.encoded,
                         is_training=self.is_training)
+
         # Decode the content of sample_noise
         self.decoded, self.decoded_logits = \
                 decoder(opts, reuse=True, noise=self.sample_noise,
@@ -135,6 +138,9 @@ class WAE(object):
         tf.add_to_collection('real_points_ph', self.sample_points)
         tf.add_to_collection('noise_ph', self.sample_noise)
         tf.add_to_collection('is_training_ph', self.is_training)
+        if self.enc_mean is not None:
+            tf.add_to_collection('encoder_mean', self.enc_mean)
+            tf.add_to_collection('encoder_var', self.enc_sigmas)
         tf.add_to_collection('encoder', self.encoded)
         tf.add_to_collection('decoder', self.decoded)
         if self.loss_gan:
