@@ -10,7 +10,7 @@ flags = tf.app.flags
 flags.DEFINE_integer("zdim", 8, "Dimensionality of the latent space")
 flags.DEFINE_string("z_test", 'mmd', "Method of choice for verifying Pz=Qz")
 flags.DEFINE_float("wae_lambda", 10., "WAE regularization")
-flags.DEFINE_string("work_dir", 'results_mnist', "Working directory")
+flags.DEFINE_string("work_dir", 'results_test', "Working directory")
 flags.DEFINE_string("dataset", 'mnist', "mnist, celebA, ...")
 FLAGS = flags.FLAGS
 
@@ -18,6 +18,8 @@ def main():
 
     if FLAGS.dataset == 'celebA':
         opts = configs.config_celebA
+    elif FLAGS.dataset == 'celebA_small':
+        opts = configs.config_celebA_small
     elif FLAGS.dataset == 'mnist':
         opts = configs.config_mnist
     elif FLAGS.dataset == 'mnist_small':

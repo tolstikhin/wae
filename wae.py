@@ -663,7 +663,8 @@ def save_plots(opts, sample_train, sample_test,
     greyscale = sample_train.shape[-1] == 1
 
     if opts['input_normalize_sym']:
-        for pics in [sample_train, sample_test, recon_train, recon_test]:
+        for pics in [sample_train, sample_test,
+                     recon_train, recon_test, sample_gen]:
             pics[:] = pics / 2. + 0.5
 
     images = []
