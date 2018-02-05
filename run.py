@@ -17,8 +17,12 @@ parser.add_argument("--z_test",
                     help='method of choice for verifying Pz=Qz [mmd/gan]')
 parser.add_argument("--wae_lambda", help='WAE regularizer', type=int)
 parser.add_argument("--work_dir")
-parser.add_argument("--e_is_random", help="use random encoders",
-                    action="store_true")
+parser.add_argument("--enc_noise",
+                    help="type of encoder noise:"\
+                         " 'deterministic': no noise whatsoever,"\
+                         " 'random': gaussian encoder,"\
+                         " 'add_noise': add noise before feeding "\
+                         "to deterministic encoder")
 
 FLAGS = parser.parse_args()
 
@@ -45,9 +49,16 @@ def main():
         opts['work_dir'] = FLAGS.work_dir
     if FLAGS.wae_lambda:
         opts['lambda'] = FLAGS.wae_lambda
-    if FLAGS.e_is_random:
-        opts['e_is_random'] = True
-        opts['e_add_noise'] = False
+    if FLAGS.enc_noise:
+        if FLAGS.enc_noise == 'deterministic':
+            opts['e_is_random'] = False
+            opts['e_add_noise'] = False
+        elif FLAGS.enc_noise == 'random':
+            opts['e_is_random'] = True
+            opts['e_add_noise'] = False
+        elif FLAGS.enc_noise == 'add_noise':
+            opts['e_is_random'] = False
+            opts['e_add_noise'] = True
     if opts['e_is_random'] and opts['e_add_noise']:
         assert False, 'can not combine random encoder with additive noise'
 
