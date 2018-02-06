@@ -53,20 +53,14 @@ class WAE(object):
                                    is_training=self.is_training)
             self.enc_mean, self.enc_sigmas = enc_mean, enc_sigmas
             if opts['verbose']:
-                # Debug the largest and smallest log variances
-                enc_sigmas = tf.Print(
-                    enc_sigmas,
-                    [tf.nn.top_k(tf.reshape(enc_sigmas, [-1]), 1).values[0]],
-                    'Maximal log sigmas:')
-                enc_sigmas = tf.Print(
-                    enc_sigmas,
-                    [-tf.nn.top_k(tf.reshape(-enc_sigmas, [-1]), 1).values[0]],
-                    'Minimal log sigmas:')
+                self.add_sigmas_debug()
 
             eps = tf.random_normal((sample_size, opts['zdim']),
                                    0., 1., dtype=tf.float32)
-            self.encoded = enc_mean + tf.multiply(
-                eps, tf.sqrt(1e-8 + tf.exp(enc_sigmas)))
+            self.encoded = self.enc_mean + tf.multiply(
+                eps, tf.sqrt(1e-8 + tf.exp(self.enc_sigmas)))
+            # self.encoded = self.enc_mean + tf.multiply(
+            #     eps, tf.exp(self.enc_sigmas / 2.))
 
         # Decode the points encoded above (i.e. reconstruct)
         self.reconstructed, self.reconstructed_logits = \
@@ -97,7 +91,6 @@ class WAE(object):
         self.add_optimizers()
         self.add_savers()
         self.init = tf.global_variables_initializer()
-
 
     def add_model_placeholders(self):
         opts = self.opts
@@ -231,20 +224,20 @@ class WAE(object):
         dotprods = tf.matmul(sample_qz, sample_pz, transpose_b=True)
         distances = norms_qz + tf.transpose(norms_pz) - 2. * dotprods
 
-        if opts['verbose']:
-            distances = tf.Print(
-                distances,
-                [tf.nn.top_k(tf.reshape(distances_qz, [-1]), 1).values[0]],
-                'Maximal Qz squared pairwise distance:')
-            distances = tf.Print(distances, [tf.reduce_mean(distances_qz)],
-                                'Average Qz squared pairwise distance:')
+        # if opts['verbose']:
+        #     distances = tf.Print(
+        #         distances,
+        #         [tf.nn.top_k(tf.reshape(distances_qz, [-1]), 1).values[0]],
+        #         'Maximal Qz squared pairwise distance:')
+        #     distances = tf.Print(distances, [tf.reduce_mean(distances_qz)],
+        #                         'Average Qz squared pairwise distance:')
 
-            distances = tf.Print(
-                distances,
-                [tf.nn.top_k(tf.reshape(distances_pz, [-1]), 1).values[0]],
-                'Maximal Pz squared pairwise distance:')
-            distances = tf.Print(distances, [tf.reduce_mean(distances_pz)],
-                                'Average Pz squared pairwise distance:')
+        #     distances = tf.Print(
+        #         distances,
+        #         [tf.nn.top_k(tf.reshape(distances_pz, [-1]), 1).values[0]],
+        #         'Maximal Pz squared pairwise distance:')
+        #     distances = tf.Print(distances, [tf.reduce_mean(distances_pz)],
+        #                         'Average Pz squared pairwise distance:')
 
         if kernel == 'RBF':
             # Median heuristic for the sigma^2 of Gaussian kernel
@@ -560,6 +553,7 @@ class WAE(object):
                     logging.error('Matching penalty after %d steps: %f' % (
                         counter, losses_match[-1]))
 
+
                 counter += 1
 
                 # Print debug info
@@ -610,6 +604,25 @@ class WAE(object):
                                     losses_match[-1], loss_rec_test)
                     logging.error(debug_str)
 
+                    # Printing debug info for encoder variances if applicable
+                    if opts['e_is_random']:
+                        logging.error('Per dimension encoder variances:')
+                        per_dim_range = self.debug_sigmas.eval(
+                            session = self.sess,
+                            feed_dict={self.sample_points: data.test_data[:500],
+                                       self.is_training: False})
+                        for idim in range(per_dim_range.shape[0]):
+                            if per_dim_range[idim][1] > 0.:
+                                logging.error(
+                                    'dim%.4d: [%.2f; %.2f]  <------' % (idim,
+                                       per_dim_range[idim][0],
+                                       per_dim_range[idim][1]))
+                            else:
+                                logging.error(
+                                    'dim%.4d: [%.2f; %.2f]' % (idim,
+                                       per_dim_range[idim][0],
+                                       per_dim_range[idim][1]))
+
                     # Choosing the 2d projection for Pz vs Qz plots
                     pz_noise = self.sample_pz(opts['plot_num_pics'])
                     if opts['pz'] == 'normal':
@@ -643,6 +656,15 @@ class WAE(object):
                                           'trained-wae-final'),
                              global_step=counter)
 
+    def add_sigmas_debug(self):
+
+        # Ops to debug variances of random encoders
+
+        enc_sigmas_t = tf.transpose(self.enc_sigmas)
+        max_per_dim = tf.reshape(tf.nn.top_k(enc_sigmas_t, 1).values, [-1, 1])
+        min_per_dim = tf.reshape(-tf.nn.top_k(-enc_sigmas_t, 1).values, [-1, 1])
+        per_dim = tf.concat([min_per_dim, max_per_dim], axis=1)
+        self.debug_sigmas = per_dim
 
 def save_plots(opts, sample_train, sample_test,
                recon_train, recon_test,

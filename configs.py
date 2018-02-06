@@ -107,8 +107,7 @@ config_mnist['lambda'] = 10.
 
 # Toy MNIST experiment
 config_mnist_small = copy.deepcopy(config_mnist)
-config_mnist_small['zdim'] = 30
-config_mnist_small['z_test'] = 'gan'
+config_mnist_small['z_test'] = 'mmd'
 config_mnist_small['g_arch'] = 'mlp'
 config_mnist_small['e_arch'] = 'mlp'
 config_mnist_small['g_num_layers'] = 3
@@ -118,10 +117,7 @@ config_mnist_small['e_num_filters'] = 256
 config_mnist_small['print_every'] = 500
 config_mnist_small['save_every_epoch'] = 1
 config_mnist_small['lr_schedule'] = 'plateau'
-config_mnist_small['epoch_num'] = 10
-
-config_mnist_small['e_add_noise'] = False
-config_mnist_small['e_is_random'] = True
+config_mnist_small['epoch_num'] = 3
 
 # Toy celebA experiment
 config_celebA_small = copy.deepcopy(config_celebA)

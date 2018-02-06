@@ -8,7 +8,7 @@ from datahandler import DataHandler
 import utils
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--dataset", default='mnist_small',
+parser.add_argument("--exp", default='mnist_small',
                     help='dataset [mnist/celebA/dsprites]')
 parser.add_argument("--zdim",
                     help='dimensionality of the latent space',
@@ -28,15 +28,15 @@ FLAGS = parser.parse_args()
 
 def main():
 
-    if FLAGS.dataset == 'celebA':
+    if FLAGS.exp == 'celebA':
         opts = configs.config_celebA
-    elif FLAGS.dataset == 'celebA_small':
+    elif FLAGS.exp == 'celebA_small':
         opts = configs.config_celebA_small
-    elif FLAGS.dataset == 'mnist':
+    elif FLAGS.exp == 'mnist':
         opts = configs.config_mnist
-    elif FLAGS.dataset == 'mnist_small':
+    elif FLAGS.exp == 'mnist_small':
         opts = configs.config_mnist_small
-    elif FLAGS.dataset == 'dsprites':
+    elif FLAGS.exp == 'dsprites':
         opts = configs.config_dsprites
     else:
         assert False, 'Unknown experiment configuration'
