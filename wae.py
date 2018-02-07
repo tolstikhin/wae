@@ -51,6 +51,7 @@ class WAE(object):
         else:
             enc_mean, enc_sigmas = encoder(opts, inputs=self.sample_points,
                                    is_training=self.is_training)
+            enc_sigmas = tf.clip_by_value(enc_sigmas, -50, 50)
             self.enc_mean, self.enc_sigmas = enc_mean, enc_sigmas
             if opts['verbose']:
                 self.add_sigmas_debug()
@@ -659,6 +660,16 @@ class WAE(object):
     def add_sigmas_debug(self):
 
         # Ops to debug variances of random encoders
+        enc_sigmas = self.enc_sigmas
+        enc_sigmas = tf.Print(
+            enc_sigmas,
+            [tf.nn.top_k(tf.reshape(enc_sigmas, [-1]), 1).values[0]],
+            'Maximal log sigmas:')
+        enc_sigmas = tf.Print(
+            enc_sigmas,
+            [-tf.nn.top_k(tf.reshape(-enc_sigmas, [-1]), 1).values[0]],
+            'Minimal log sigmas:')
+        self.enc_sigmas = enc_sigmas
 
         enc_sigmas_t = tf.transpose(self.enc_sigmas)
         max_per_dim = tf.reshape(tf.nn.top_k(enc_sigmas_t, 1).values, [-1, 1])
