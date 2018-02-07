@@ -52,6 +52,7 @@ config_celebA['pz_scale'] = 1.
 config_celebA['z_test'] = 'mmd'
 config_celebA['mmd_kernel'] = 'IMQ' # RBF, IMQ
 config_celebA['lambda'] = 100.
+config_celebA['lambda_schedule'] = 'constant'
 
 # MNIST config from ICLR paper
 
@@ -104,6 +105,7 @@ config_mnist['pz_scale'] = 1.
 config_mnist['z_test'] = 'mmd'
 config_mnist['mmd_kernel'] = 'IMQ' # RBF, IMQ
 config_mnist['lambda'] = 10.
+config_mnist['lambda_schedule'] = 'constant'
 
 # Toy MNIST experiment
 config_mnist_small = copy.deepcopy(config_mnist)
@@ -117,7 +119,7 @@ config_mnist_small['e_num_filters'] = 256
 config_mnist_small['print_every'] = 500
 config_mnist_small['save_every_epoch'] = 1
 config_mnist_small['lr_schedule'] = 'plateau'
-config_mnist_small['epoch_num'] = 3
+config_mnist_small['epoch_num'] = 5
 
 # Toy celebA experiment
 config_celebA_small = copy.deepcopy(config_celebA)
@@ -182,3 +184,4 @@ config_dsprites['pz_scale'] = 1.
 config_dsprites['z_test'] = 'mmd'
 config_dsprites['mmd_kernel'] = 'IMQ' # RBF, IMQ
 config_dsprites['lambda'] = 10.
+config_dsprites['lambda_schedule'] = 'constant'

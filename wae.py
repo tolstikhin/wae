@@ -78,7 +78,7 @@ class WAE(object):
         self.penalty, self.loss_gan = self.matching_penalty()
         self.loss_reconstruct = self.reconstruction_loss()
         self.wae_objective = self.loss_reconstruct + \
-                         opts['lambda'] * self.penalty
+                         self.wae_lambda * self.penalty
 
         if opts['e_pretrain']:
             self.loss_pretrain = self.pretrain_loss()
@@ -107,8 +107,10 @@ class WAE(object):
     def add_training_placeholders(self):
         opts = self.opts
         decay = tf.placeholder(tf.float32, name='rate_decay_ph')
+        wae_lambda = tf.placeholder(tf.float32, name='lambda_ph')
         is_training = tf.placeholder(tf.bool, name='is_training_ph')
         self.lr_decay = decay
+        self.wae_lambda = wae_lambda
         self.is_training = is_training
 
     def pretrain_loss(self):
@@ -290,7 +292,7 @@ class WAE(object):
         loss_Qz_trick = tf.reduce_mean(
             tf.nn.sigmoid_cross_entropy_with_logits(
                 logits=logits_Qz, labels=tf.ones_like(logits_Qz)))
-        loss_adversary = opts['lambda'] * (loss_Pz + loss_Qz)
+        loss_adversary = self.wae_lambda * (loss_Pz + loss_Qz)
         # Non-saturating loss trick
         loss_match = loss_Qz_trick
         return (loss_adversary, logits_Pz, logits_Qz), loss_match
@@ -471,7 +473,9 @@ class WAE(object):
         self.start_time = time.time()
         counter = 0
         decay = 1.
+        wae_lambda = opts['lambda']
         wait = 0
+        wait_lambda = 0
 
         for epoch in xrange(opts["epoch_num"]):
 
@@ -518,6 +522,7 @@ class WAE(object):
                     feed_dict={self.sample_points: batch_images,
                                self.sample_noise: batch_noise,
                                self.lr_decay: decay,
+                               self.wae_lambda: wae_lambda,
                                self.is_training: True})
 
                 # Update the adversary in Z space for WAE-GAN
@@ -528,6 +533,7 @@ class WAE(object):
                         [self.z_adv_opt, loss_adv],
                         feed_dict={self.sample_points: batch_images,
                                    self.sample_noise: batch_noise,
+                                   self.wae_lambda: wae_lambda,
                                    self.lr_decay: decay,
                                    self.is_training: True})
 
@@ -553,6 +559,19 @@ class WAE(object):
                 if opts['verbose']:
                     logging.error('Matching penalty after %d steps: %f' % (
                         counter, losses_match[-1]))
+
+                # Update regularizer if necessary
+                if opts['lambda_schedule'] == 'adaptive':
+                    if wait_lambda >= 999 and len(losses_rec) > 0:
+                        last_rec = losses_rec[-1]
+                        last_match = losses_match[-1]
+                        wae_lambda = 0.5 * wae_lambda + \
+                                     0.5 * last_rec / abs(last_match)
+                        if opts['verbose']:
+                            logging.error('Lambda updated to %f' % wae_lambda)
+                        wait_lambda = 0
+                    else:
+                        wait_lambda += 1
 
 
                 counter += 1

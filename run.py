@@ -17,6 +17,8 @@ parser.add_argument("--z_test",
                     help='method of choice for verifying Pz=Qz [mmd/gan]')
 parser.add_argument("--wae_lambda", help='WAE regularizer', type=int)
 parser.add_argument("--work_dir")
+parser.add_argument("--lambda_schedule",
+                    help='constant or adaptive')
 parser.add_argument("--enc_noise",
                     help="type of encoder noise:"\
                          " 'deterministic': no noise whatsoever,"\
@@ -45,6 +47,8 @@ def main():
         opts['zdim'] = FLAGS.zdim
     if FLAGS.z_test:
         opts['z_test'] = FLAGS.z_test
+    if FLAGS.lambda_schedule:
+        opts['lambda_schedule'] = FLAGS.lambda_schedule
     if FLAGS.work_dir:
         opts['work_dir'] = FLAGS.work_dir
     if FLAGS.wae_lambda:
