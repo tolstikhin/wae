@@ -50,10 +50,20 @@ def encoder(opts, inputs, reuse=False, is_training=False):
             # We already encoded the picture X -> res = E_1(X)
             # Now we do E_2(eps) and return E(res, E_2(eps))
             sample_size = tf.shape(res)[0]
+
+            # res = tf.Print(res, [tf.nn.top_k(tf.transpose(res), 1).values], 'Code max')
+            # res = tf.Print(res, [-tf.nn.top_k(tf.transpose(-res), 1).values], 'Code min')
+            # sample_size = tf.Print(sample_size, [tf.shape(res)])
             eps = tf.random_normal((sample_size, opts['zdim']),
                                    0., 1., dtype=tf.float32)
             eps_mod = transform_noise(opts, eps, reuse)
+            # eps_mod = tf.Print(eps_mod, [tf.nn.top_k(tf.transpose(eps_mod), 1).values], 'Eps max')
+            # eps_mod = tf.Print(eps_mod, [-tf.nn.top_k(tf.transpose(-eps_mod), 1).values], 'Eps min')
+
             res = merge_with_noise(opts, res, eps_mod, reuse)
+            # res = tf.Print(res, [res[0]], 'One embedding')
+            # res = tf.Print(res, [tf.nn.top_k(tf.transpose(res), 1).values], 'Res max')
+            # res = tf.Print(res, [-tf.nn.top_k(tf.transpose(-res), 1).values], 'Res min')
 
         return res
 
@@ -345,15 +355,16 @@ def z_adversary(opts, inputs, reuse=False):
 def transform_noise(opts, eps, reuse=False):
     hi = eps
     num_units = 2 * opts['zdim']
-    for i in xrange(2):
+    for i in xrange(0):
         hi = ops.linear(opts, hi, num_units, scope='eps_h%d_lin' % (i + 1))
         hi = tf.nn.relu(hi)
     return ops.linear(opts, hi, opts['zdim'], scope='eps_hfinal_lin')
 
 def merge_with_noise(opts, pic_code, eps, reuse=False):
     hi = tf.concat([pic_code, eps], 1)
+    # hi = tf.Print(hi, [hi[0][0], hi[0][1], hi[0][2], hi[0][3]], 'Concatenated')
     num_units = 4 * opts['zdim']
-    for i in xrange(2):
+    for i in xrange(0):
         hi = ops.linear(opts, hi, num_units, scope='merge_h%d_lin' % (i + 1))
         hi = tf.nn.relu(hi)
     return ops.linear(opts, hi, opts['zdim'], scope='merge_hfinal_lin')
