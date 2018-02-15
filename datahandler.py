@@ -127,6 +127,12 @@ class Data(object):
         else:
             # Our dataset was too large to fit in the memory
             return len(self.paths)
+
+    def drop_loaded(self):
+        if not isinstance(self.X, np.ndarray):
+            self.dict_loaded = {}
+            self.loaded = []
+
     def __getitem__(self, key):
         if isinstance(self.X, np.ndarray):
             return self.X[key]
