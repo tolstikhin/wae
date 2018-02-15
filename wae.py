@@ -44,11 +44,12 @@ class WAE(object):
         # -- Transformation ops
 
         # Encode the content of sample_points placeholder
-        if not opts['e_is_random']:
+        if opts['e_noise'] in ('deterministic', 'add_noise'):
             self.enc_mean, self.enc_sigmas = None, None
             self.encoded = encoder(opts, inputs=self.sample_points,
                                    is_training=self.is_training)
-        else:
+        elif opts['e_noise'] == 'gaussian':
+            # Encoder outputs means and variances of Gaussian
             enc_mean, enc_sigmas = encoder(opts, inputs=self.sample_points,
                                    is_training=self.is_training)
             enc_sigmas = tf.clip_by_value(enc_sigmas, -50, 50)
@@ -62,6 +63,8 @@ class WAE(object):
                 eps, tf.sqrt(1e-8 + tf.exp(self.enc_sigmas)))
             # self.encoded = self.enc_mean + tf.multiply(
             #     eps, tf.exp(self.enc_sigmas / 2.))
+        elif opts['e_noise'] == 'implicit':
+            # Encoder takes a pic and a noise as inputs
 
         # Decode the points encoded above (i.e. reconstruct)
         self.reconstructed, self.reconstructed_logits = \

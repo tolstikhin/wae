@@ -4,7 +4,9 @@ import ops
 from datahandler import datashapes
 
 def encoder(opts, inputs, reuse=False, is_training=False):
-    if opts['e_add_noise']:
+
+    if opts['e_noise'] == 'add_noise':
+        # Particular instance of the implicit random encoder
         def add_noise(x):
             shape = tf.shape(x)
             return x + tf.truncated_normal(shape, 0.0, 0.01)
@@ -14,6 +16,7 @@ def encoder(opts, inputs, reuse=False, is_training=False):
                          lambda: add_noise(inputs), lambda: do_nothing(inputs))
     num_units = opts['e_num_filters']
     num_layers = opts['e_num_layers']
+
     with tf.variable_scope("encoder", reuse=reuse):
         if opts['e_arch'] == 'mlp':
             # Encoder uses only fully connected layers with ReLus
@@ -24,25 +27,35 @@ def encoder(opts, inputs, reuse=False, is_training=False):
                     hi = ops.batch_norm(opts, hi, is_training,
                                         reuse, scope='h%d_bn' % i)
                 hi = tf.nn.relu(hi)
-            if not opts['e_is_random']:
+            if opts['e_noise'] != 'gaussian':
                 res = ops.linear(opts, hi, opts['zdim'], 'hfinal_lin')
-                return res
             else:
                 mean = ops.linear(opts, hi, opts['zdim'], 'mean_lin')
                 log_sigmas = ops.linear(opts, hi,
                                         opts['zdim'], 'log_sigmas_lin')
-                return mean, log_sigmas
+                res = (mean, log_sigmas)
         elif opts['e_arch'] == 'dcgan':
             # Fully convolutional architecture similar to DCGAN
-            return dcgan_encoder(opts, inputs, is_training, reuse)
+            res = dcgan_encoder(opts, inputs, is_training, reuse)
         elif opts['e_arch'] == 'ali':
             # Architecture smilar to "Adversarially learned inference" paper
-            return ali_encoder(opts, inputs, is_training, reuse)
+            res = ali_encoder(opts, inputs, is_training, reuse)
         elif opts['e_arch'] == 'began':
             # Architecture similar to the BEGAN paper
-            return began_encoder(opts, inputs, is_training, reuse)
+            res = began_encoder(opts, inputs, is_training, reuse)
         else:
             raise ValueError('%s Unknown encoder architecture' % opts['e_arch'])
+
+        if opts['e_noise'] == 'implicit':
+            # We already encoded the picture X -> res = E_1(X)
+            # Now we do E_2(eps) and return E(res, E_2(eps))
+            sample_size = tf.shape(res)[0]
+            eps = tf.random_normal((sample_size, opts['zdim']),
+                                   0., 1., dtype=tf.float32)
+            eps_mod = transform_noise(opts, eps, reuse)
+            res = merge_with_noise(opts, res, eps_mod, reuse)
+
+        return res
 
 def decoder(opts, noise, reuse=False, is_training=True):
     assert opts['dataset'] in datashapes, 'Unknown dataset!'
@@ -92,7 +105,7 @@ def dcgan_encoder(opts, inputs, is_training=False, reuse=False):
             layer_x = ops.batch_norm(opts, layer_x, is_training,
                                      reuse, scope='h%d_bn' % i)
         layer_x = tf.nn.relu(layer_x)
-    if not opts['e_is_random']:
+    if opts['e_noise'] != 'gaussian':
         res = ops.linear(opts, layer_x, opts['zdim'], scope='hfinal_lin')
         return res
     else:
@@ -138,7 +151,7 @@ def ali_encoder(opts, inputs, is_training=False, reuse=False):
     layer_x = ops.conv2d(opts, layer_x, num_units / 2, d_h=1, d_w=1,
                          scope='conv2d_1x1_2', conv_filters_dim=1)
 
-    if not opts['e_is_random']:
+    if opts['e_noise'] != 'gaussian':
         res = ops.linear(opts, layer_x, opts['zdim'], scope='hlast_lin')
         return res
     else:
@@ -169,7 +182,7 @@ def began_encoder(opts, inputs, is_training=False, reuse=False):
                 layer_x = ops.downsample(layer_x, scope='h%d_maxpool' % i,
                                          reuse=reuse)
     # Tensor should be [N, 8, 8, filters] at this point
-    if not opts['e_is_random']:
+    if opts['e_noise'] != 'gaussian':
         res = ops.linear(opts, layer_x, opts['zdim'], scope='hfinal_lin')
         return res
     else:
@@ -327,3 +340,20 @@ def z_adversary(opts, inputs, reuse=False):
                     - 0.5 * tf.log(2. * np.pi) \
                     - 0.5 * opts['zdim'] * np.log(sigma2_p)
     return hi
+
+
+def transform_noise(opts, eps, reuse=False):
+    hi = eps
+    num_units = 2 * opts['zdim']
+    for i in xrange(2):
+        hi = ops.linear(opts, hi, num_units, scope='eps_h%d_lin' % (i + 1))
+        hi = tf.nn.relu(hi)
+    return ops.linear(opts, hi, opts['zdim'], scope='eps_hfinal_lin')
+
+def merge_with_noise(opts, pic_code, eps, reuse=False):
+    hi = tf.concat([pic_code, eps], 1)
+    num_units = 4 * opts['zdim']
+    for i in xrange(2):
+        hi = ops.linear(opts, hi, num_units, scope='merge_h%d_lin' % (i + 1))
+        hi = tf.nn.relu(hi)
+    return ops.linear(opts, hi, opts['zdim'], scope='merge_hfinal_lin')

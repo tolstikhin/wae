@@ -29,10 +29,9 @@ config_celebA['batch_norm_eps'] = 1e-05
 config_celebA['batch_norm_decay'] = 0.9
 config_celebA['conv_filters_dim'] = 5
 
-config_celebA['e_is_random'] = False
 config_celebA['e_pretrain'] = True
 config_celebA['e_pretrain_sample_size'] = 256
-config_celebA['e_add_noise'] = True
+config_celebA['e_noise'] = 'add_noise'
 config_celebA['e_num_filters'] = 1024
 config_celebA['e_num_layers'] = 4
 config_celebA['e_arch'] = 'dcgan' # mlp, dcgan, ali
@@ -82,10 +81,9 @@ config_mnist['batch_norm_eps'] = 1e-05
 config_mnist['batch_norm_decay'] = 0.9
 config_mnist['conv_filters_dim'] = 4
 
-config_mnist['e_is_random'] = False
 config_mnist['e_pretrain'] = True
 config_mnist['e_pretrain_sample_size'] = 1000
-config_mnist['e_add_noise'] = True
+config_mnist['e_noise'] = 'add_noise'
 config_mnist['e_num_filters'] = 1024
 config_mnist['e_num_layers'] = 4
 config_mnist['e_arch'] = 'dcgan' # mlp, dcgan, ali
@@ -161,10 +159,9 @@ config_dsprites['batch_norm_eps'] = 1e-05
 config_dsprites['batch_norm_decay'] = 0.9
 config_dsprites['conv_filters_dim'] = 4
 
-config_dsprites['e_is_random'] = False
 config_dsprites['e_pretrain'] = True
 config_dsprites['e_pretrain_sample_size'] = 1000
-config_dsprites['e_add_noise'] = True
+config_dsprites['e_noise'] = 'add_noise'
 config_dsprites['e_num_filters'] = 256
 config_dsprites['e_num_layers'] = 4
 config_dsprites['e_arch'] = 'dcgan' # mlp, dcgan, ali

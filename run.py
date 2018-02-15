@@ -22,7 +22,8 @@ parser.add_argument("--lambda_schedule",
 parser.add_argument("--enc_noise",
                     help="type of encoder noise:"\
                          " 'deterministic': no noise whatsoever,"\
-                         " 'random': gaussian encoder,"\
+                         " 'gaussian': gaussian encoder,"\
+                         " 'implicit': implicit encoder,"\
                          " 'add_noise': add noise before feeding "\
                          "to deterministic encoder")
 
@@ -54,17 +55,7 @@ def main():
     if FLAGS.wae_lambda:
         opts['lambda'] = FLAGS.wae_lambda
     if FLAGS.enc_noise:
-        if FLAGS.enc_noise == 'deterministic':
-            opts['e_is_random'] = False
-            opts['e_add_noise'] = False
-        elif FLAGS.enc_noise == 'random':
-            opts['e_is_random'] = True
-            opts['e_add_noise'] = False
-        elif FLAGS.enc_noise == 'add_noise':
-            opts['e_is_random'] = False
-            opts['e_add_noise'] = True
-    if opts['e_is_random'] and opts['e_add_noise']:
-        assert False, 'can not combine random encoder with additive noise'
+        opts['e_noise'] = FLAGS.enc_noise
 
     if opts['verbose']:
         logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(message)s')
