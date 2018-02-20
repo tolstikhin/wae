@@ -46,8 +46,12 @@ class WAE(object):
         # Encode the content of sample_points placeholder
         if opts['e_noise'] in ('deterministic', 'implicit', 'add_noise'):
             self.enc_mean, self.enc_sigmas = None, None
-            self.encoded = encoder(opts, inputs=self.sample_points,
-                                   is_training=self.is_training)
+            res = encoder(opts, inputs=self.sample_points,
+                          is_training=self.is_training)
+            if opts['e_noise'] == 'implicit':
+                self.encoded, self.encoder_A = res
+            else:
+                self.encoded = res
         elif opts['e_noise'] == 'gaussian':
             # Encoder outputs means and variances of Gaussian
             enc_mean, enc_sigmas = encoder(opts, inputs=self.sample_points,
@@ -138,6 +142,8 @@ class WAE(object):
         if self.enc_mean is not None:
             tf.add_to_collection('encoder_mean', self.enc_mean)
             tf.add_to_collection('encoder_var', self.enc_sigmas)
+        if opts['e_noise'] == 'implicit':
+            tf.add_to_collection('encoder_A', self.encoder_A)
         tf.add_to_collection('encoder', self.encoded)
         tf.add_to_collection('decoder', self.decoded)
         if self.loss_gan:
