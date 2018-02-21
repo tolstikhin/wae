@@ -22,6 +22,7 @@ datashapes = {}
 datashapes['mnist'] = [28, 28, 1]
 datashapes['cifar10'] = [32, 32, 3]
 datashapes['celebA'] = [64, 64, 3]
+datashapes['grassli'] = [64, 64, 3]
 datashapes['dsprites'] = [64, 64, 1]
 
 def _data_dir(opts):
@@ -249,6 +250,8 @@ class DataHandler(object):
             self._load_cifar(opts)
         elif opts['dataset'] == 'celebA':
             self._load_celebA(opts)
+        elif opts['dataset'] == 'grassli':
+            self._load_grassli(opts)
         else:
             raise ValueError('Unknown %s' % opts['dataset'])
 
@@ -257,7 +260,8 @@ class DataHandler(object):
                           'mnist3',
                           'guitars',
                           'cifar10',
-                          'celebA']
+                          'celebA',
+                          'grassli']
 
         if opts['input_normalize_sym'] and opts['dataset'] not in sym_applicable:
             raise Exception('Can not normalyze this dataset')
@@ -374,13 +378,6 @@ class DataHandler(object):
         """
         logging.debug('Loading dsprites')
         data_dir = _data_dir(opts)
-        # pylint: disable=invalid-name
-        # Let us use all the bad variable names!
-        tr_X = None
-        tr_Y = None
-        te_X = None
-        te_Y = None
-
         data_file = os.path.join(data_dir, 'dsprites.npz')
         X = np.load(data_file)['imgs']
         X = X[:, :, :, None]
@@ -614,3 +611,28 @@ class DataHandler(object):
 
         logging.debug('Loading Done.')
 
+    def _load_grassli(self, opts):
+        """Load grassli
+
+        """
+        logging.debug('Loading grassli dataset')
+
+        data_dir = _data_dir(opts)
+        dataset = np.load(utils.o_gfile((data_dir, 'grassli.npy'), 'rb'))
+
+        X = dataset / 255.
+
+        seed = 123
+        np.random.seed(seed)
+        np.random.shuffle(X)
+        np.random.seed(seed)
+        np.random.seed()
+
+        self.data_shape = (64, 64, 3)
+        test_size = 5000
+
+        self.data = Data(opts, X[:-test_size])
+        self.test_data = Data(opts, X[-test_size:])
+        self.num_points = len(self.data)
+
+        logging.debug('Loading Done.')
