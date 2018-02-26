@@ -57,6 +57,10 @@ def encoder(opts, inputs, reuse=False, is_training=False):
             eps = tf.random_normal((sample_size, opts['zdim']),
                                    0., 1., dtype=tf.float32)
             eps_mod, A = transform_noise(opts, eps, reuse)
+            eps_mod = tf.Print(eps_mod, [A[0,0,0]], 'Matrix')
+            eps_mod = tf.Print(eps_mod, [A[0,0,1]], 'Matrix')
+            eps_mod = tf.Print(eps_mod, [A[0,1,0]], 'Matrix')
+            eps_mod = tf.Print(eps_mod, [A[0,1,1]], 'Matrix')
             # eps_mod = tf.Print(eps_mod, [tf.nn.top_k(tf.transpose(eps_mod), 1).values], 'Eps max')
             # eps_mod = tf.Print(eps_mod, [-tf.nn.top_k(tf.transpose(-eps_mod), 1).values], 'Eps min')
 
@@ -346,7 +350,7 @@ def z_adversary(opts, inputs, reuse=False):
             # dQz(x) term. This appeared in the AVB paper.
             assert opts['pz'] == 'normal', \
                 'The GAN Pz trick is currently available only for Gaussian Pz'
-            sigma2_p = float(opts['pot_pz_scale']) ** 2
+            sigma2_p = float(opts['pz_scale']) ** 2
             normsq = tf.reduce_sum(tf.square(inputs), 1)
             hi = hi - normsq / 2. / sigma2_p \
                     - 0.5 * tf.log(2. * np.pi) \
