@@ -270,6 +270,7 @@ class DataHandler(object):
             # Normalize data to [-1, 1]
             if isinstance(self.data.X, np.ndarray):
                 self.data.X = (self.data.X - 0.5) * 2.
+                self.test_data.X = (self.test_data.X - 0.5) * 2.
             # Else we will normalyze while reading from disk
 
 
@@ -618,9 +619,7 @@ class DataHandler(object):
         logging.debug('Loading grassli dataset')
 
         data_dir = _data_dir(opts)
-        dataset = np.load(utils.o_gfile((data_dir, 'grassli.npy'), 'rb'))
-
-        X = dataset / 255.
+        X = np.load(utils.o_gfile((data_dir, 'grassli.npy'), 'rb')) / 255.
 
         seed = 123
         np.random.seed(seed)
