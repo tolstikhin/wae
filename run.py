@@ -41,6 +41,10 @@ def main():
         opts = configs.config_mnist_small
     elif FLAGS.exp == 'dsprites':
         opts = configs.config_dsprites
+    elif FLAGS.exp == 'grassli':
+        opts = configs.config_grassli
+    elif FLAGS.exp == 'grassli_small':
+        opts = configs.config_grassli_small
     else:
         assert False, 'Unknown experiment configuration'
 
