@@ -182,3 +182,67 @@ config_dsprites['z_test'] = 'mmd'
 config_dsprites['mmd_kernel'] = 'IMQ' # RBF, IMQ
 config_dsprites['lambda'] = 10.
 config_dsprites['lambda_schedule'] = 'constant'
+
+# grassli config 
+
+config_grassli = {}
+config_grassli['dataset'] = 'grassli'
+config_grassli['verbose'] = True
+config_grassli['save_every_epoch'] = 20
+config_grassli['print_every'] = 500
+config_grassli['work_dir'] = 'results_grassli'
+config_grassli['plot_num_pics'] = 30
+config_grassli['plot_num_cols'] = 5
+
+config_grassli['input_normalize_sym'] = True
+config_grassli['data_dir'] = 'grassli'
+
+config_grassli['optimizer'] = 'adam' # adam, sgd
+config_grassli['adam_beta1'] = 0.5
+config_grassli['lr'] = 0.0005 #0.001 for WAE-MMD and 0.0003 for WAE-GAN
+config_grassli['lr_adv'] = 0.001
+config_grassli['lr_schedule'] = 'manual' #manual, plateau, or a number
+config_grassli['batch_size'] = 100
+config_grassli['epoch_num'] = 100
+config_grassli['init_std'] = 0.0099999
+config_grassli['init_bias'] = 0.0
+config_grassli['batch_norm'] = True
+config_grassli['batch_norm_eps'] = 1e-05
+config_grassli['batch_norm_decay'] = 0.9
+config_grassli['conv_filters_dim'] = 5
+
+config_grassli['e_pretrain'] = True
+config_grassli['e_pretrain_sample_size'] = 256
+config_grassli['e_noise'] = 'implicit'
+config_grassli['e_num_filters'] = 1024
+config_grassli['e_num_layers'] = 4
+config_grassli['e_arch'] = 'dcgan' # mlp, dcgan, ali
+
+config_grassli['g_num_filters'] = 1024
+config_grassli['g_num_layers'] = 4
+config_grassli['g_arch'] = 'dcgan_mod' # mlp, dcgan, dcgan_mod, ali
+
+config_grassli['gan_p_trick'] = True
+config_grassli['d_num_layers'] = 4
+config_grassli['d_num_filters'] = 1024
+
+config_grassli['zdim'] = 30
+config_grassli['pz'] = 'normal' # uniform, normal, sphere
+config_grassli['cost'] = 'l2sq' #l2, l2sq, l1
+config_grassli['pz_scale'] = 1.
+config_grassli['z_test'] = 'mmd'
+config_grassli['mmd_kernel'] = 'IMQ' # RBF, IMQ
+config_grassli['lambda'] = 100.
+config_grassli['lambda_schedule'] = 'constant'
+
+# Toy grassli experiment
+config_grassli_small = copy.deepcopy(config_grassli)
+config_grassli_small['zdim'] = 2
+# config_grassli_small['g_arch'] = 'mlp'
+# config_grassli_small['e_arch'] = 'mlp'
+config_grassli_small['g_num_layers'] = 2
+config_grassli_small['g_num_filters'] = 64
+config_grassli_small['e_num_layers'] = 2
+config_grassli_small['e_num_filters'] = 64
+config_grassli_small['print_every'] = 50
+config_grassli_small['lr_schedule'] = 'plateau'
