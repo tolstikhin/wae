@@ -48,27 +48,14 @@ def encoder(opts, inputs, reuse=False, is_training=False):
 
         if opts['e_noise'] == 'implicit':
             # We already encoded the picture X -> res = E_1(X)
-            # Now we do E_2(eps) and return E(res, E_2(eps))
+            # Now we return res + A(res) * eps, which is supposed
+            # to project a noise on the directions depending on the
+            # place in latent space
             sample_size = tf.shape(res)[0]
-
-            # res = tf.Print(res, [tf.nn.top_k(tf.transpose(res), 1).values], 'Code max')
-            # res = tf.Print(res, [-tf.nn.top_k(tf.transpose(-res), 1).values], 'Code min')
-            # sample_size = tf.Print(sample_size, [tf.shape(res)])
             eps = tf.random_normal((sample_size, opts['zdim']),
                                    0., 1., dtype=tf.float32)
-            eps_mod, A = transform_noise(opts, eps, reuse)
-            eps_mod = tf.Print(eps_mod, [A[0,0,0]], 'Matrix')
-            eps_mod = tf.Print(eps_mod, [A[0,0,1]], 'Matrix')
-            eps_mod = tf.Print(eps_mod, [A[0,1,0]], 'Matrix')
-            eps_mod = tf.Print(eps_mod, [A[0,1,1]], 'Matrix')
-            # eps_mod = tf.Print(eps_mod, [tf.nn.top_k(tf.transpose(eps_mod), 1).values], 'Eps max')
-            # eps_mod = tf.Print(eps_mod, [-tf.nn.top_k(tf.transpose(-eps_mod), 1).values], 'Eps min')
-
-            # res = merge_with_noise(opts, res, eps_mod, reuse)
+            eps_mod, A = transform_noise(opts, res, eps)
             res = res + eps_mod
-            # res = tf.Print(res, [res[0]], 'One embedding')
-            # res = tf.Print(res, [tf.nn.top_k(tf.transpose(res), 1).values], 'Res max')
-            # res = tf.Print(res, [-tf.nn.top_k(tf.transpose(-res), 1).values], 'Res min')
             return res, A
 
         return res
@@ -358,17 +345,18 @@ def z_adversary(opts, inputs, reuse=False):
     return hi
 
 
-def transform_noise(opts, code, eps, reuse=False):
+def transform_noise(opts, code, eps):
     hi = code
     T = 3
     for i in xrange(T):
-        num_units = max(opts['zdim'] ** 2 / 2 ** (T - i), 2)
+        # num_units = max(opts['zdim'] ** 2 / 2 ** (T - i), 2)
+        num_units = max(2 * (i + 1) * opts['zdim'], 2)
         hi = ops.linear(opts, hi, num_units, scope='eps_h%d_lin' % (i + 1))
         hi = tf.nn.tanh(hi)
     A = ops.linear(opts, hi, opts['zdim'] ** 2, scope='eps_hfinal_lin')
     A = tf.reshape(A, [-1, opts['zdim'], opts['zdim']])
-    code = tf.reshape(code, [-1, 1, opts['zdim']])
-    res = tf.matmul(code, A)
+    eps = tf.reshape(eps, [-1, 1, opts['zdim']])
+    res = tf.matmul(eps, A)
     res = tf.reshape(res, [-1, opts['zdim']])
     return res, A
     # return ops.linear(opts, hi, opts['zdim'] ** 2, scope='eps_hfinal_lin')

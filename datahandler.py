@@ -603,7 +603,7 @@ class DataHandler(object):
         saver.save('shuffled_training_ids', datapoint_ids)
 
         self.data_shape = (64, 64, 3)
-        test_size = 512
+        test_size = 20000
         self.data = Data(opts, None, paths[:-test_size])
         self.test_data = Data(opts, None, paths[-test_size:])
         self.num_points = num_samples - test_size
