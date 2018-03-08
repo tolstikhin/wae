@@ -519,6 +519,11 @@ class WAE(object):
                     decay = decay / 5.
                 if epoch == 100:
                     decay = decay / 10.
+            elif opts['lr_schedule'] == "manual_smooth":
+                enum = opts['epoch_num']
+                decay_t = np.exp(np.log(100.) / enum)
+                decay = decay / decay_t
+
             elif opts['lr_schedule'] != "plateau":
                 assert type(opts['lr_schedule']) == float
                 decay = 1.0 * 10**(-epoch / float(opts['lr_schedule']))
