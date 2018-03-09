@@ -13,6 +13,9 @@ parser.add_argument("--exp", default='mnist_small',
 parser.add_argument("--zdim",
                     help='dimensionality of the latent space',
                     type=int)
+parser.add_argument("--lr",
+                    help='ae learning rate',
+                    type=float)
 parser.add_argument("--z_test",
                     help='method of choice for verifying Pz=Qz [mmd/gan]')
 parser.add_argument("--wae_lambda", help='WAE regularizer', type=int)
@@ -48,17 +51,19 @@ def main():
     else:
         assert False, 'Unknown experiment configuration'
 
-    if FLAGS.zdim:
+    if FLAGS.zdim is not None:
         opts['zdim'] = FLAGS.zdim
-    if FLAGS.z_test:
+    if FLAGS.lr is not None:
+        opts['lr'] = FLAGS.lr
+    if FLAGS.z_test is not None:
         opts['z_test'] = FLAGS.z_test
-    if FLAGS.lambda_schedule:
+    if FLAGS.lambda_schedule is not None:
         opts['lambda_schedule'] = FLAGS.lambda_schedule
-    if FLAGS.work_dir:
+    if FLAGS.work_dir is not None:
         opts['work_dir'] = FLAGS.work_dir
-    if FLAGS.wae_lambda:
+    if FLAGS.wae_lambda is not None:
         opts['lambda'] = FLAGS.wae_lambda
-    if FLAGS.enc_noise:
+    if FLAGS.enc_noise is not None:
         opts['e_noise'] = FLAGS.enc_noise
 
     if opts['verbose']:
