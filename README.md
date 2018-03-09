@@ -6,3 +6,9 @@ wae.py          -   everything specific to WAE, including encoder-decoder losses
 a distribution matching penalties, and training pipelines
 
 run.py          -   master script to train a specific model on a selected dataset with specified hyperparameters
+
+# Example of output pictures
+
+The following picture shows various characteristics of the WAE-MMD model trained on CelebA after 50 epochs:
+
+![WAE-MMD progress](https://github.com/tolstikhin/wae/raw/master/images/celeba_example.png)
