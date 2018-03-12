@@ -44,18 +44,17 @@ class WAE(object):
         # -- Transformation ops
 
         # Encode the content of sample_points placeholder
+        res = encoder(opts, inputs=self.sample_points,
+                      is_training=self.is_training)
         if opts['e_noise'] in ('deterministic', 'implicit', 'add_noise'):
             self.enc_mean, self.enc_sigmas = None, None
-            res = encoder(opts, inputs=self.sample_points,
-                          is_training=self.is_training)
             if opts['e_noise'] == 'implicit':
                 self.encoded, self.encoder_A = res
             else:
-                self.encoded = res
+                self.encoded, _ = res
         elif opts['e_noise'] == 'gaussian':
             # Encoder outputs means and variances of Gaussian
-            enc_mean, enc_sigmas = encoder(opts, inputs=self.sample_points,
-                                   is_training=self.is_training)
+            enc_mean, enc_sigmas = res[0]
             enc_sigmas = tf.clip_by_value(enc_sigmas, -50, 50)
             self.enc_mean, self.enc_sigmas = enc_mean, enc_sigmas
             if opts['verbose']:
@@ -274,7 +273,15 @@ class WAE(object):
             # k(x, y) = C / (C + ||x - y||^2)
             # C = tf.nn.top_k(tf.reshape(distances, [-1]), half_size).values[half_size - 1]
             # C += tf.nn.top_k(tf.reshape(distances_qz, [-1]), half_size).values[half_size - 1]
-            Cbase = 2 * opts['zdim'] * sigma2_p
+            if opts['pz'] == 'normal':
+                Cbase = 2. * opts['zdim'] * sigma2_p
+            elif opts['pz'] == 'sphere':
+                Cbase = 2.
+            elif opts['pz'] == 'uniform':
+                # E ||x - y||^2 = E[sum (xi - yi)^2]
+                #               = zdim E[(xi - yi)^2]
+                #               = const * zdim
+                Cbase = opts['zdim']
             stat = 0.
             for scale in [.1, .2, .5, 1., 2., 5., 10.]:
                 C = Cbase * scale

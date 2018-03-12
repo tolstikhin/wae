@@ -46,6 +46,8 @@ def encoder(opts, inputs, reuse=False, is_training=False):
         else:
             raise ValueError('%s Unknown encoder architecture' % opts['e_arch'])
 
+        noise_matrix = None
+
         if opts['e_noise'] == 'implicit':
             # We already encoded the picture X -> res = E_1(X)
             # Now we return res + A(res) * eps, which is supposed
@@ -54,11 +56,17 @@ def encoder(opts, inputs, reuse=False, is_training=False):
             sample_size = tf.shape(res)[0]
             eps = tf.random_normal((sample_size, opts['zdim']),
                                    0., 1., dtype=tf.float32)
-            eps_mod, A = transform_noise(opts, res, eps)
+            eps_mod, noise_matrix = transform_noise(opts, res, eps)
             res = res + eps_mod
-            return res, A
 
-        return res
+        if opts['pz'] == 'sphere':
+            # Projecting back to the sphere
+            res = tf.nn.l2_normalize(res, dim=1)
+        elif opts['pz'] == 'uniform':
+            # Mapping back to the [-1,1]^zdim box
+            res = tf.nn.tanh(res)
+
+        return res, noise_matrix
 
 def decoder(opts, noise, reuse=False, is_training=True):
     assert opts['dataset'] in datashapes, 'Unknown dataset!'
