@@ -17,6 +17,7 @@ import ops
 import utils
 from models import encoder, decoder, z_adversary
 from datahandler import datashapes
+import costs
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
