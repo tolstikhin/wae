@@ -8,8 +8,6 @@ from datahandler import DataHandler
 import utils
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--mode", default='train',
-                    help='train or test')
 parser.add_argument("--exp", default='mnist_small',
                     help='dataset [mnist/celebA/dsprites]')
 parser.add_argument("--zdim",
@@ -36,6 +34,10 @@ parser.add_argument("--enc_noise",
                          " 'implicit': implicit encoder,"\
                          " 'add_noise': add noise before feeding "\
                          "to deterministic encoder")
+parser.add_argument("--mode", default='train',
+                    help='train or test')
+parser.add_argument("--checkpoint",
+                    help='full path to the checkpoint file without extension')
 
 FLAGS = parser.parse_args()
 
@@ -59,6 +61,9 @@ def main():
         assert False, 'Unknown experiment configuration'
 
     opts['mode'] = FLAGS.mode
+    if opts['mode'] == 'test':
+        assert FLAGS.checkpoint is not None, 'Checkpoint must be provided'
+        opts['checkpoint'] = FLAGS.checkpoint
 
     if FLAGS.zdim is not None:
         opts['zdim'] = FLAGS.zdim
@@ -110,6 +115,6 @@ def main():
     elif opts['mode'] == 'test':
 
         # Do something else
-        pass
+        wae.test()
 
 main()

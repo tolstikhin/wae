@@ -128,16 +128,17 @@ class WAE(object):
         self.sample_noise = noise
 
     def add_inputs_variables(self):
-        v = tf.get_variable(
-            "proj_v", [opts['zdim'], 1],
-            tf.float32, tf.random_normal_initializer(stddev=1.))
+        opts = self.opts
+        shape = self.data_shape
         with tf.variable_scope('inputs', reuse=False):
-            opts = self.opts
-            shape = self.data_shape
             data = tf.get_variable(
-                tf.float32, [1] + shape, name='real_points_var')
+                'real_points_variable',
+                [1] + shape, tf.float32,
+                tf.random_normal_initializer(stddev=1e-03))
             noise = tf.get_variable(
-                tf.float32, [1] + [opts['zdim']], name='noise_var')
+                'noise_variable',
+                [1] + [opts['zdim']], tf.float32,
+                tf.random_normal_initializer(stddev=1.))
 
         self.sample_points = data
         self.sample_noise = noise
@@ -512,6 +513,18 @@ class WAE(object):
         if not updated:
             logging.error('WARNING: possible bug in the worst 2d projection')
         return proj_mat, dot_prod
+
+    def test(self):
+        opts = self.opts
+        checkpoint = opts['checkpoint']
+        with self.sess.as_default(), self.sess.graph.as_default():
+            all_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
+            vars_to_restore = [v for v in all_vars \
+                    if 'noise_variable' not in v.name \
+                    and 'real_points_variable' not in v.name]
+            saver = tf.train.Saver(vars_to_restore)
+            saver.restore(self.sess, checkpoint)
+        logging.error('DONE')
 
     def train(self, data):
         opts = self.opts
