@@ -518,13 +518,27 @@ class WAE(object):
         opts = self.opts
         checkpoint = opts['checkpoint']
         with self.sess.as_default(), self.sess.graph.as_default():
+            # We need to restore all variables except two new tf variables
+            # --- the ones replacing input placeholders in the new graph
             all_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
-            vars_to_restore = [v for v in all_vars \
-                    if 'noise_variable' not in v.name \
-                    and 'real_points_variable' not in v.name]
+            inputs_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='inputs')
+            vars_to_restore = [v for v in all_vars if v not in inputs_vars]
             saver = tf.train.Saver(vars_to_restore)
             saver.restore(self.sess, checkpoint)
-        logging.error('DONE')
+            init = tf.variables_initializer(inputs_vars)
+            init.run()
+            # getting references to some of the ops
+            is_training_ph = tf.get_collection('is_training_ph')[0]
+            decoder = tf.get_collection('decoder')[0]
+            encoder = tf.get_collection('encoder')[0]
+            encoder_A = tf.get_collection('encoder_A')
+            if len(encoder_A) > 0:
+                encoder_A = encoder_A[0]
+            else:
+                encoder_A = None
+            a = decoder.eval(feed_dict={is_training_ph: False})
+            print a.shape
+            print (a + 1.) / 2.
 
     def train(self, data):
         opts = self.opts
