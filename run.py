@@ -106,9 +106,10 @@ def main():
     data = DataHandler(opts)
     assert data.num_points >= opts['batch_size'], 'Training set too small'
 
-    # Creating WAE model
-    wae = WAE(opts)
     if opts['mode'] == 'train':
+
+        # Creating WAE model
+        wae = WAE(opts)
 
         # Training WAE
         wae.train(data)
@@ -116,6 +117,6 @@ def main():
     elif opts['mode'] == 'test':
 
         # Do something else
-        improved_wae.test(opts, wae)
+        improved_wae.test(opts)
 
 main()

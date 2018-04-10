@@ -76,14 +76,14 @@ class WAE(object):
 
         # Decode the content of sample_noise
         self.decoded, self.decoded_logits = \
-                decoder(opts, reuse=True, noise=self.sample_noise,
-                        is_training=self.is_training)
+            decoder(opts, reuse=True, noise=self.sample_noise,
+                    is_training=self.is_training)
 
         # -- Objectives, losses, penalties
 
         self.penalty, self.loss_gan = self.matching_penalty()
-        self.loss_reconstruct = self.reconstruction_loss(self.sample_points,
-                                                         self.reconstructed)
+        self.loss_reconstruct = self.reconstruction_loss(
+            self.opts, self.sample_points, self.reconstructed)
         self.wae_objective = self.loss_reconstruct + \
                          self.wae_lambda * self.penalty
 
@@ -321,8 +321,8 @@ class WAE(object):
         loss_match = loss_Qz_trick
         return (loss_adversary, logits_Pz, logits_Qz), loss_match
 
-    def reconstruction_loss(self, real, reconstr):
-        opts = self.opts
+    @staticmethod
+    def reconstruction_loss(opts, real, reconstr):
         # real = self.sample_points
         # reconstr = self.reconstructed
         if opts['cost'] == 'l2':
