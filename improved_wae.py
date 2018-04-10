@@ -3,10 +3,13 @@
 # (See accompanying file ./LICENSE.txt or copy at
 # https://opensource.org/licenses/BSD-3-Clause)
 
-# Different additional losses for the WAE framework
+# Various attempts at improving the WAE
 import tensorflow as tf
 import numpy as np
 from models import encoder, decoder
+import matplotlib
+matplotlib.use("Agg")
+import matplotlib.pyplot as plt
 
 def add_aefixedpoint_cost(opts, wae_model):
 
@@ -46,3 +49,19 @@ def add_aefixedpoint_cost(opts, wae_model):
     #    print encoder_vars[idx].name, el
 
     wae_model.wae_objective += wae_model.w_aefixedpoint * extra_cost
+
+def test(opts, wae_model):
+    checkpoint = opts['checkpoint']
+    with wae_model.sess.as_default(), wae_model.sess.graph.as_default():
+        # We need to restore all variables except two new tf variables
+        # --- the ones replacing input placeholders in the new graph
+        all_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
+        inputs_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='inputs')
+        vars_to_restore = [v for v in all_vars if v not in inputs_vars]
+        saver = tf.train.Saver(vars_to_restore)
+        saver.restore(wae_model.sess, checkpoint)
+        init = tf.variables_initializer(inputs_vars)
+        init.run()
+        # getting references to some of the ops
+        gen_pic = self.decoded
+        ae_gen_pic = 

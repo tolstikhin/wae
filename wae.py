@@ -15,10 +15,9 @@ import tensorflow as tf
 import logging
 import ops
 import utils
-import costs
 from models import encoder, decoder, z_adversary
 from datahandler import datashapes
-import costs
+import improved_wae
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
@@ -39,10 +38,7 @@ class WAE(object):
 
         # -- Placeholders
 
-        if opts['mode'] == 'train':
-            self.add_inputs_placeholders()
-        elif opts['mode'] == 'test':
-            self.add_inputs_variables()
+        self.add_inputs_placeholders()
 
         self.add_training_placeholders()
         sample_size = tf.shape(self.sample_points)[0]
@@ -93,7 +89,7 @@ class WAE(object):
 
         # Extra costs if any
         if 'w_aef' in opts and opts['w_aef'] > 0:
-            costs.add_aefixedpoint_cost(opts, self)
+            improved_wae.add_aefixedpoint_cost(opts, self)
 
         self.blurriness = self.compute_blurriness()
 
@@ -111,34 +107,12 @@ class WAE(object):
         self.init = tf.global_variables_initializer()
 
     def add_inputs_placeholders(self):
-        # During training the inputs to encoder and decoder
-        # (i.e. pictures fed to encoder, Pz noise and encoded
-        # pictures, fed to decoder) are taken from the placeholder.
-        # Sometimes however we may want to tune those inputs while
-        # keeping the trained model fixed. Then we define inputs
-        # as tf variables (see add_inputs_placeholders below)
         opts = self.opts
         shape = self.data_shape
         data = tf.placeholder(
             tf.float32, [None] + shape, name='real_points_ph')
         noise = tf.placeholder(
             tf.float32, [None] + [opts['zdim']], name='noise_ph')
-
-        self.sample_points = data
-        self.sample_noise = noise
-
-    def add_inputs_variables(self):
-        opts = self.opts
-        shape = self.data_shape
-        with tf.variable_scope('inputs', reuse=False):
-            data = tf.get_variable(
-                'real_points_variable',
-                [1] + shape, tf.float32,
-                tf.random_normal_initializer(stddev=1e-03))
-            noise = tf.get_variable(
-                'noise_variable',
-                [1] + [opts['zdim']], tf.float32,
-                tf.random_normal_initializer(stddev=1.))
 
         self.sample_points = data
         self.sample_noise = noise
@@ -513,32 +487,6 @@ class WAE(object):
         if not updated:
             logging.error('WARNING: possible bug in the worst 2d projection')
         return proj_mat, dot_prod
-
-    def test(self):
-        opts = self.opts
-        checkpoint = opts['checkpoint']
-        with self.sess.as_default(), self.sess.graph.as_default():
-            # We need to restore all variables except two new tf variables
-            # --- the ones replacing input placeholders in the new graph
-            all_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
-            inputs_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES, scope='inputs')
-            vars_to_restore = [v for v in all_vars if v not in inputs_vars]
-            saver = tf.train.Saver(vars_to_restore)
-            saver.restore(self.sess, checkpoint)
-            init = tf.variables_initializer(inputs_vars)
-            init.run()
-            # getting references to some of the ops
-            is_training_ph = tf.get_collection('is_training_ph')[0]
-            decoder = tf.get_collection('decoder')[0]
-            encoder = tf.get_collection('encoder')[0]
-            encoder_A = tf.get_collection('encoder_A')
-            if len(encoder_A) > 0:
-                encoder_A = encoder_A[0]
-            else:
-                encoder_A = None
-            a = decoder.eval(feed_dict={is_training_ph: False})
-            print a.shape
-            print (a + 1.) / 2.
 
     def train(self, data):
         opts = self.opts

@@ -4,6 +4,7 @@ import logging
 import argparse
 import configs
 from wae import WAE
+import improved_wae
 from datahandler import DataHandler
 import utils
 
@@ -115,6 +116,6 @@ def main():
     elif opts['mode'] == 'test':
 
         # Do something else
-        wae.test()
+        improved_wae.test(opts, wae)
 
 main()
