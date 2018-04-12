@@ -117,6 +117,6 @@ def main():
     elif opts['mode'] == 'test':
 
         # Do something else
-        improved_wae.test(opts)
+        improved_wae.improved_sampling(opts)
 
 main()
