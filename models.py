@@ -21,6 +21,7 @@ def encoder(opts, inputs, reuse=False, is_training=False):
         if opts['e_arch'] == 'mlp':
             # Encoder uses only fully connected layers with ReLus
             hi = inputs
+            i = 0
             for i in xrange(num_layers):
                 hi = ops.linear(opts, hi, num_units, scope='h%d_lin' % i)
                 if opts['batch_norm']:
@@ -77,6 +78,7 @@ def decoder(opts, noise, reuse=False, is_training=True):
         if opts['g_arch'] == 'mlp':
             # Architecture with only fully connected layers and ReLUs
             layer_x = noise
+            i = 0
             for i in xrange(opts['g_num_layers']):
                 layer_x = ops.linear(opts, layer_x, num_units, 'h%d_lin' % i)
                 layer_x = tf.nn.relu(layer_x)

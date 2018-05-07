@@ -16,33 +16,57 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 
 def improved_sampling(opts):
-    NUM_ROWS = 10
-    NUM_COLS = 10
-    NUM_GD_STEPS = 100000
+    MAX_GD_STEPS = 200
+    LOSS_EVERY_STEPS = 50
+    DEBUG = False
+    NUM_POINTS = 10000
+    BATCH_SIZE = 100
 
-    num_z = NUM_ROWS * NUM_COLS
     checkpoint = opts['checkpoint']
+
+    # Creating a dummy file for later FID evaluations
+    dummy_path = os.path.join(opts['work_dir'], 'checkpoints', 'dummy.meta')
+    with open(dummy_path, 'w') as f:
+        f.write('dummy string')
+
     with tf.Session() as sess:
         with sess.graph.as_default():
 
-            z = tf.get_variable(
-                "latent_codes", [num_z, opts['zdim']],
-                tf.float32, tf.random_normal_initializer(stddev=1.))
+            # Creating the graph
+
+            if opts['pz'] in ('normal', 'sphere'):
+                codes = tf.get_variable(
+                    "latent_codes", [BATCH_SIZE, opts['zdim']],
+                    tf.float32, tf.random_normal_initializer(stddev=1.))
+                if opts['pz'] == 'sphere':
+                    z = codes / (tf.norm(codes, axis=0) + 1e-8)
+                else:
+                    z = codes
+            elif opts['pz'] == 'uniform':
+                codes = tf.get_variable(
+                    "latent_codes", [BATCH_SIZE, opts['zdim']],
+                    tf.float32, tf.random_uniform_initializer(minval=-1., maxval=1.))
+            z = opts['pz_scale'] * z
             is_training_ph = tf.placeholder(tf.bool, name='is_training_ph')
             gen, _ = decoder(opts, z, is_training=is_training_ph)
             data_shape = datashapes[opts['dataset']]
-            gen.set_shape([num_z] + data_shape)
+            gen.set_shape([BATCH_SIZE] + data_shape)
             e_gen, _ = encoder(opts, gen, is_training=is_training_ph)
             if opts['e_noise'] == 'gaussian':
                 e_gen = e_gen[0]
-            ae_gen = decoder(opts, e_gen, reuse=True, is_training=is_training_ph)
-            loss = wae.WAE.reconstruction_loss(opts, gen, ae_gen)
-            # optim = tf.train.AdamOptimizer(0.001, 0.9)
-            optim = tf.train.AdamOptimizer(0.01, 0.9)
-            optim = optim.minimize(loss, var_list=[z])
+            ae_gen, _ = decoder(opts, e_gen, reuse=True, is_training=is_training_ph)
+            # Cool hack: normalizing by the picture contrast,
+            # otherwise SGD manages to decrease the loss by reducing 
+            # the contrast
+            loss = wae.WAE.reconstruction_loss(
+                opts,
+                contrast_norm(gen),
+                contrast_norm(ae_gen))
+            optim = tf.train.AdamOptimizer(opts['lr'], 0.9)
+            optim = optim.minimize(loss, var_list=[codes])
 
-            # Now restoring weights from the checkpoint
-            # We need to restore all variables except for newly created ones
+            # Now restoring encoder and decoder from the checkpoint
+
             all_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES)
             enc_vars = tf.get_collection(tf.GraphKeys.GLOBAL_VARIABLES,
                                          scope='encoder')
@@ -56,31 +80,57 @@ def improved_sampling(opts):
             logging.error('Restored.')
 
             init = tf.variables_initializer(new_vars)
-            for iteration in xrange(1):
-                pic_id = 0
+
+            # Finally, start generating the samples
+
+            res_samples = []
+            res_codes = []
+
+            for ibatch in range(NUM_POINTS / BATCH_SIZE):
+
+                logging.error('Batch %d of %d' % (ibatch + 1, NUM_POINTS / BATCH_SIZE))
                 loss_prev = 1e10
                 init.run()
-                for step in xrange(NUM_GD_STEPS):
-                    if (step < 100) or (step >= 100 and step % 100 == 0):
-                        # will save all 100 first steps and then every 100 steps
-                        pics = gen.eval(feed_dict={is_training_ph: False})
-                        codes = z.eval()
-                        pic_path = os.path.join(opts['work_dir'],
-                                                'pic%03d' % pic_id)
-                        code_path = os.path.join(opts['work_dir'],
-                                                 'code%03d' % pic_id)
-                        np.save(pic_path, pics)
-                        np.save(code_path, codes)
-                        pic_id += 1
+                for step in xrange(MAX_GD_STEPS):
+
                     # Make a gradient step
                     sess.run(optim, feed_dict={is_training_ph: False})
-                    if step % 10 == 0:
-                        loss_cur = loss.eval(feed_dict={is_training_ph: False})
+
+                    if step == 0 or step % LOSS_EVERY_STEPS == LOSS_EVERY_STEPS - 1:
+                        loss_cur, pics, codes = sess.run([loss, gen, z], feed_dict={is_training_ph: False})
+                        if DEBUG:
+                            if opts['input_normalize_sym']:
+                                pics = (pics + 1.) / 2.
+                            pic_path = os.path.join(opts['work_dir'],
+                                                    'checkpoints',
+                                                    'dummy.samples100_%05d' % step)
+                            code_path = os.path.join(opts['work_dir'],
+                                                     'checkpoints',
+                                                     'code%05d' % step)
+                            np.save(pic_path, pics)
+                            np.save(code_path, codes)
                         rel_imp = abs(loss_cur - loss_prev) / abs(loss_prev)
-                        logging.error('step %d, loss=%f, rel_imp=%f' % (step, loss_cur, rel_imp))
-                        # if rel_imp < 1e-2:
-                        #     break
+                        logging.error('-- step %d, loss=%f, rel_imp=%f' % (step, loss_cur, rel_imp))
+                        if step > 0 and rel_imp < 0.1:
+                            break
                         loss_prev = loss_cur
+
+                res_samples.append(pics)
+                res_codes.append(codes)
+
+            samples = np.array(res_samples)
+            samples = np.vstack(samples)
+            codes = np.array(res_codes)
+            codes = np.vstack(codes)
+            pic_path = os.path.join(opts['work_dir'], 'checkpoints', 'dummy.samples%d' % (NUM_POINTS))
+            code_path = os.path.join(opts['work_dir'], 'checkpoints', 'codes%d' % (NUM_POINTS))
+            np.save(pic_path, samples)
+            np.save(code_path, codes)
+
+def contrast_norm(pics):
+    # pics is a [N, H, W, C] tensor
+    mean, var = tf.nn.moments(pics, axes=[1, 2, 3], keep_dims=True)
+    return pics / tf.sqrt(var + 1e-08)
 
 def add_aefixedpoint_cost(opts, wae_model):
 
