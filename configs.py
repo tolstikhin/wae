@@ -114,10 +114,13 @@ config_mnist_small['g_num_layers'] = 3
 config_mnist_small['g_num_filters'] = 256
 config_mnist_small['e_num_layers'] = 3
 config_mnist_small['e_num_filters'] = 256
-config_mnist_small['print_every'] = 500
-config_mnist_small['save_every_epoch'] = 1
+config_mnist_small['print_every'] = 1000
+config_mnist_small['save_every_epoch'] = 10
 config_mnist_small['lr_schedule'] = 'plateau'
-config_mnist_small['epoch_num'] = 5
+config_mnist_small['epoch_num'] = 30
+config_mnist_small['mmd_kernel'] = 'IMQ'
+config_mnist_small['zdim'] = 4
+config_mnist_small['e_noise'] = 'gaussian'
 
 # Toy celebA experiment
 config_celebA_small = copy.deepcopy(config_celebA)
@@ -128,8 +131,10 @@ config_celebA_small['g_num_layers'] = 3
 config_celebA_small['g_num_filters'] = 256
 config_celebA_small['e_num_layers'] = 3
 config_celebA_small['e_num_filters'] = 256
-config_celebA_small['print_every'] = 50
+config_celebA_small['print_every'] = 500
 config_celebA_small['lr_schedule'] = 'plateau'
+config_celebA_small['mmd_kernel'] = 'IMQ'
+config_celebA_small['e_noise'] = 'gaussian'
 
 
 # dsprites config 

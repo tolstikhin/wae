@@ -24,12 +24,13 @@ import matplotlib.pyplot as plt
 
 class WAE(object):
 
-    def __init__(self, opts):
+    def __init__(self, opts, train_size=0):
 
         logging.error('Building the Tensorflow Graph')
 
         self.sess = tf.Session()
         self.opts = opts
+        self.train_size = train_size
 
         # -- Some of the parameters for future use
 
@@ -219,6 +220,12 @@ class WAE(object):
             loss_gan, loss_match = self.gan_penalty(sample_qz, sample_pz)
         elif opts['z_test'] == 'mmd':
             loss_match = self.mmd_penalty(sample_qz, sample_pz)
+        elif opts['z_test'] == 'mmdpp':
+            loss_match = improved_wae.mmdpp_penalty(
+                opts, self, sample_pz)
+        elif opts['z_test'] == 'mmdppp':
+            loss_match = improved_wae.mmdpp_1d_penalty(
+                opts, self, sample_pz)
         else:
             assert False, 'Unknown penalty %s' % opts['z_test']
         return loss_match, loss_gan
@@ -708,13 +715,15 @@ class WAE(object):
                         for idim in range(per_dim_range.shape[0]):
                             if per_dim_range[idim][1] > 0.:
                                 logging.error(
-                                    'dim%.4d: [%.2f; %.2f]  <------' % (idim,
+                                    'dim%.4d: [%.2f; %.2f; %.2f]  <------' % (idim,
                                        per_dim_range[idim][0],
+                                       per_dim_range[idim][2],
                                        per_dim_range[idim][1]))
                             else:
                                 logging.error(
-                                    'dim%.4d: [%.2f; %.2f]' % (idim,
+                                    'dim%.4d: [%.2f; %.2f; %.2f]' % (idim,
                                        per_dim_range[idim][0],
+                                       per_dim_range[idim][2],
                                        per_dim_range[idim][1]))
 
                     # Choosing the 2d projection for Pz vs Qz plots
@@ -769,7 +778,8 @@ class WAE(object):
         enc_sigmas_t = tf.transpose(self.enc_sigmas)
         max_per_dim = tf.reshape(tf.nn.top_k(enc_sigmas_t, 1).values, [-1, 1])
         min_per_dim = tf.reshape(-tf.nn.top_k(-enc_sigmas_t, 1).values, [-1, 1])
-        per_dim = tf.concat([min_per_dim, max_per_dim], axis=1)
+        avg_per_dim = tf.reshape(tf.reduce_mean(enc_sigmas_t, 1), [-1, 1])
+        per_dim = tf.concat([min_per_dim, max_per_dim, avg_per_dim], axis=1)
         self.debug_sigmas = per_dim
 
 def save_plots(opts, sample_train, sample_test,

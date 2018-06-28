@@ -109,7 +109,7 @@ def main():
     if opts['mode'] == 'train':
 
         # Creating WAE model
-        wae = WAE(opts)
+        wae = WAE(opts, data.num_points)
 
         # Training WAE
         wae.train(data)

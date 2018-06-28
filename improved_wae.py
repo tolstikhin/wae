@@ -184,3 +184,299 @@ def examples(opts, wae_model):
         saver.restore(wae_model.sess, checkpoint)
         init = tf.variables_initializer(inputs_vars)
         init.run()
+
+def block_diagonal(matrices, dtype=tf.float32):
+    """Constructs block-diagonal matrices from a list of batched 2D tensors.
+    Taken from: https://stackoverflow.com/questions/42157781/block-diagonal-matrices-in-tensorflow
+
+    Args:
+    matrices: A list of Tensors with shape [..., N_i, M_i] (i.e. a list of
+      matrices with the same batch dimension).
+    dtype: Data type to use. The Tensors in `matrices` must match this dtype.
+    Returns:
+    A matrix with the input matrices stacked along its main diagonal, having
+    shape [..., \sum_i N_i, \sum_i M_i].
+
+    """
+    matrices = [tf.convert_to_tensor(matrix, dtype=dtype) for matrix in matrices]
+    blocked_rows = tf.Dimension(0)
+    blocked_cols = tf.Dimension(0)
+    batch_shape = tf.TensorShape(None)
+    for matrix in matrices:
+        full_matrix_shape = matrix.get_shape().with_rank_at_least(2)
+        batch_shape = batch_shape.merge_with(full_matrix_shape[:-2])
+        blocked_rows += full_matrix_shape[-2]
+        blocked_cols += full_matrix_shape[-1]
+    ret_columns_list = []
+    for matrix in matrices:
+        matrix_shape = tf.shape(matrix)
+        ret_columns_list.append(matrix_shape[-1])
+    ret_columns = tf.add_n(ret_columns_list)
+    row_blocks = []
+    current_column = 0
+    for matrix in matrices:
+        matrix_shape = tf.shape(matrix)
+        row_before_length = current_column
+        current_column += matrix_shape[-1]
+        row_after_length = ret_columns - current_column
+        row_blocks.append(tf.pad(
+            tensor=matrix,
+            paddings=tf.concat(
+                [tf.zeros([tf.rank(matrix) - 1, 2], dtype=tf.int32),
+                 [(row_before_length, row_after_length)]],
+                axis=0)))
+    blocked = tf.concat(row_blocks, -2)
+    blocked.set_shape(batch_shape.concatenate((blocked_rows, blocked_cols)))
+    return blocked
+
+def sq_distances(points):
+    sq_norms = tf.reduce_sum(tf.square(points), axis=1, keep_dims=True)
+    dotprods = tf.matmul(points, points, transpose_b=True)
+    return sq_norms, sq_norms + tf.transpose(sq_norms) - 2. * dotprods
+
+def mmdpp_penalty(opts, wae_model, sample_pz):
+    """ Paul's MMD++ penalty
+        For now assuming it works only with Gaussian encoders
+
+        Assuming
+            N is dataset size
+            n is the picture minibatch size
+            k is number of random points per Q(Z|Xi)
+            zi are iid samples from Pz
+            z^i_m is m-th sample from Q(Z|Xi)
+
+        Unbiased statistic is:
+            (1) sum_{i neq j} k(zi, zj) / n / (n-1) -
+            (2) 2 \sum_{i, j} \sum_m k(z^i_m, zj) / k / n / n +
+            (3) (N - 1) \sum_{i neq j} \sum_{m1, m2} k(z^i_m1, z^j_m2) / n / (n - 1) / k / k / N +
+            (4) \sum_i \sum_{m1 neq m2} k(z^i_m1, z^i_m2) / n / k / (k - 1) / N
+    """
+    assert opts["e_noise"] in ('gaussian'), \
+        'MMD++ works only with Gaussian encoders!'
+
+    # Number of codes per the same pic
+    NUMCODES = 10
+    n = opts['batch_size']
+    N = wae_model.train_size
+    kernel = opts['mmd_kernel']
+    sigma2_p = opts['pz_scale'] ** 2
+
+    # First we need to sample multiple codes per minibatch picture:
+    # Qhat sample = Zi1, ..., ZiK from Q(Z|Xi) for i = 1 ... batch_size
+    # For that it is enough to sample batch_size * K standard normal vectors
+    # rescale those and then add encoder means
+    eps = tf.random_normal((n * NUMCODES, opts['zdim']),
+                           0., 1., dtype=tf.float32)
+    sigmas_q = wae_model.enc_sigmas
+    block_var = tf.reshape(tf.tile(sigmas_q, [1, NUMCODES]), [-1, opts['zdim']])
+    eps_q = tf.multiply(eps, tf.sqrt(1e-8 + tf.exp(block_var)))
+    means_q = wae_model.enc_mean
+    block_means = tf.reshape(tf.tile(means_q, [1, NUMCODES]),
+                             [-1, opts['zdim']])
+    sample_qhat = block_means + eps_q
+    # sample_qhat = tf.random_normal((n * NUMCODES, opts['zdim']),
+    #                        0., 1., dtype=tf.float32)
+
+    sq_norms_pz, dist_pz = sq_distances(sample_pz)
+    sq_norms_qhat, dist_qhat = sq_distances(sample_qhat)
+    dotprods_pz_qhat = tf.matmul(sample_pz, sample_qhat, transpose_b=True)
+    dist_pz_qhat = sq_norms_pz + tf.transpose(sq_norms_qhat) \
+                   - 2. * dotprods_pz_qhat
+
+    mask = block_diagonal(
+        [np.ones((NUMCODES, NUMCODES), dtype=np.float32) for i in range(n)],
+        tf.float32)
+
+    if kernel == 'RBF':
+        # Median heuristic for the sigma^2 of Gaussian kernel
+        sigma2_k = tf.nn.top_k(
+            tf.reshape(dist_pz_qhat, [-1]), n / 2).values[n / 2 - 1]
+        sigma2_k += tf.nn.top_k(
+            tf.reshape(dist_qhat, [-1]), n / 2).values[n / 2 - 1]
+
+        if opts['verbose']:
+            sigma2_k = tf.Print(sigma2_k, [sigma2_k], 'Kernel width:')
+        # Part (1)
+        res1 = tf.exp( - dist_pz / 2. / sigma2_k)
+        res1 = tf.multiply(res1, 1. - tf.eye(n))
+        res1 = tf.reduce_sum(res1) / (n * n - n)
+        # Part (2)
+        res2 = tf.exp( - dist_pz_qhat / 2. / sigma2_k)
+        res2 = tf.reduce_sum(res2) / (n * n) / NUMCODES
+        # Part (3)
+        res3 = tf.exp( - dist_qhat / 2. / sigma2_k)
+        res3 = tf.multiply(res3, 1. - mask)
+        res3 = tf.reduce_sum(res3) * (N - 1) / N / n / (n - 1) / (NUMCODES ** 2)
+        res3 = tf.Print(res3, [res3], 'Qhat vs Qhat off diag:')
+        # Part (4) 
+        res4 = tf.exp( - dist_qhat / 2. / sigma2_k)
+        res4 = tf.multiply(res4, mask - tf.eye(n * NUMCODES))
+        res4 = tf.reduce_sum(res4) / n / NUMCODES / (NUMCODES - 1) / N
+        res4 = tf.Print(res4, [res4], 'Qhat vs Qhat diag:')
+        stat = res1 - 2 * res2 + res3 + res4
+
+    elif kernel == 'IMQ':
+        if opts['pz'] == 'normal':
+            Cbase = 2. * opts['zdim'] * sigma2_p
+        elif opts['pz'] == 'sphere':
+            Cbase = 2.
+        elif opts['pz'] == 'uniform':
+            # E ||x - y||^2 = E[sum (xi - yi)^2]
+            #               = zdim E[(xi - yi)^2]
+            #               = const * zdim
+            Cbase = opts['zdim']
+        stat = 0.
+        # scales = [.1, .2, .5, 1., 2., 5., 10.]
+        scales = [(1., 1.), (1./N, 1)]
+        # scales = [(1., 1.)]
+        for scale, weight in scales:
+            C = Cbase * scale
+            # Part (1)
+            res1 = C / (C + dist_pz)
+            res1 = tf.multiply(res1, 1. - tf.eye(n))
+            res1 = tf.reduce_sum(res1) / (n * n - n)
+            # res1 = tf.Print(res1, [res1], 'Pz vs Pz:')
+            # Part (2)
+            res2 = C / (C + dist_pz_qhat)
+            res2 = tf.reduce_sum(res2) / (n * n) / NUMCODES
+            # res2 = tf.Print(res2, [res2], 'Pz vs Qhat:')
+            # Part (3)
+            res3 = C / (C + dist_qhat)
+            res3 = tf.multiply(res3, 1. - mask)
+            res3 = tf.reduce_sum(res3) * (N - 1) / N / n / (n - 1) / (NUMCODES ** 2)
+            res3 = tf.Print(res3, [res3], 'Qhat vs Qhat off diag [%f]:' % weight)
+            # Part (4) 
+            res4 = C / (C + dist_qhat)
+            res4 = tf.multiply(res4, mask - tf.eye(n * NUMCODES))
+            res4 = tf.reduce_sum(res4) / n / NUMCODES / (NUMCODES - 1) / N
+            res4 = tf.Print(res4, [res4], 'Qhat vs Qhat diag [%f]:' % weight)
+            stat += weight * (res1 - 2 * res2 + res3 + res4)
+    return stat
+
+def sq_distances_1d(points):
+    """
+        points is a (N, d) tensor
+        we want to return (N,d,N) tensor M, where
+        M(ijk) = (points[i,j] - points[k,j])^2
+    """
+    a = tf.expand_dims(points, 2)
+    b = tf.transpose(a, [2, 1, 0])
+    return tf.multiply(a, a) + tf.multiply(b, b) \
+            - 2. * tf.multiply(a, b)
+
+def diag_3d(n, zdim):
+    return tf.tile(tf.transpose(tf.expand_dims(tf.eye(n), 2), [0, 2, 1]),
+                   [1, zdim, 1])
+
+def mmdpp_1d_penalty(opts, wae_model, sample_pz):
+    """ Paul's MMD++ penalty for all the individual coordinates
+    """
+    assert opts["e_noise"] in ('gaussian'), \
+        '1d MMD++ works only with Gaussian encoders!'
+
+    # Number of codes per the same pic
+    NUMCODES = 10
+    n = opts['batch_size']
+    N = wae_model.train_size
+    kernel = opts['mmd_kernel']
+    sigma2_p = opts['pz_scale'] ** 2
+
+    # First we need to sample multiple codes per minibatch picture:
+    # Qhat sample = Zi1, ..., ZiK from Q(Z|Xi) for i = 1 ... batch_size
+    # For that it is enough to sample batch_size * K standard normal vectors
+    # rescale those and then add encoder means
+    eps = tf.random_normal((n * NUMCODES, opts['zdim']),
+                           0., 1., dtype=tf.float32)
+    sigmas_q = wae_model.enc_sigmas
+    block_var = tf.reshape(tf.tile(sigmas_q, [1, NUMCODES]), [-1, opts['zdim']])
+    eps_q = tf.multiply(eps, tf.sqrt(1e-8 + tf.exp(block_var)))
+    means_q = wae_model.enc_mean
+    block_means = tf.reshape(tf.tile(means_q, [1, NUMCODES]),
+                             [-1, opts['zdim']])
+    sample_qhat = block_means + eps_q
+    # sample_qhat = tf.random_normal((n * NUMCODES, opts['zdim']),
+    #                        0., 1., dtype=tf.float32)
+
+    dist_pz = sq_distances_1d(sample_pz)
+    dist_qhat = sq_distances_1d(sample_qhat)
+    temp_pz = tf.expand_dims(sample_pz, 2)
+    temp_qhat = tf.expand_dims(sample_qhat, 2)
+    temp_qhat_t = tf.transpose(temp_qhat, [2, 1, 0])
+    dist_pz_qhat = tf.multiply(temp_pz, temp_pz) \
+                   + tf.multiply(temp_qhat_t, temp_qhat_t) \
+                   - 2. * tf.multiply(temp_pz, temp_qhat_t)
+    mask = block_diagonal(
+        [np.ones((NUMCODES, NUMCODES), dtype=np.float32) for i in range(n)],
+        tf.float32)
+    mask = tf.expand_dims(mask, 2)
+    mask = tf.transpose(mask, [0, 2, 1])
+    mask = tf.tile(mask, [1, opts['zdim'], 1])
+    diag_pz = diag_3d(n, opts['zdim'])
+    diag_qhat = diag_3d(n * NUMCODES, opts['zdim'])
+
+    if kernel == 'RBF':
+        # Median heuristic for the sigma^2 of Gaussian kernel
+        sigma2_k = tf.nn.top_k(
+            tf.reshape(dist_pz_qhat, [-1]), n / 2).values[n / 2 - 1]
+        sigma2_k += tf.nn.top_k(
+            tf.reshape(dist_qhat, [-1]), n / 2).values[n / 2 - 1]
+
+        if opts['verbose']:
+            sigma2_k = tf.Print(sigma2_k, [sigma2_k], 'Kernel width:')
+
+        # Part (1)
+        res1 = tf.exp( - dist_pz / 2. / sigma2_k)
+        res1 = tf.multiply(res1, 1. - diag_pz)
+        res1 = tf.reduce_sum(res1) / (n * n - n)
+        # Part (2)
+        res2 = tf.exp( - dist_pz_qhat / 2. / sigma2_k)
+        res2 = tf.reduce_sum(res2) / (n * n) / NUMCODES
+        # Part (3)
+        res3 = tf.exp( - dist_qhat / 2. / sigma2_k)
+        res3 = tf.multiply(res3, 1. - mask)
+        res3 = tf.reduce_sum(res3) * (N - 1) / N / n / (n - 1) / (NUMCODES ** 2)
+        res3 = tf.Print(res3, [res3], 'Qhat vs Qhat off diag:')
+        # Part (4) 
+        res4 = tf.exp( - dist_qhat / 2. / sigma2_k)
+        res4 = tf.multiply(res4, mask - diag_qhat)
+        res4 = tf.reduce_sum(res4) / n / NUMCODES / (NUMCODES - 1) / N
+        res4 = tf.Print(res4, [res4], 'Qhat vs Qhat diag:')
+        stat = res1 - 2 * res2 + res3 + res4
+
+    elif kernel == 'IMQ':
+        if opts['pz'] == 'normal':
+            Cbase = 2. * opts['zdim'] * sigma2_p
+        elif opts['pz'] == 'sphere':
+            Cbase = 2.
+        elif opts['pz'] == 'uniform':
+            # E ||x - y||^2 = E[sum (xi - yi)^2]
+            #               = zdim E[(xi - yi)^2]
+            #               = const * zdim
+            Cbase = opts['zdim']
+        stat = 0.
+        # scales = [.1, .2, .5, 1., 2., 5., 10.]
+        scales = [(1., 1.), (1./N, N)]
+        for scale, weight in scales:
+            C = Cbase * scale
+            # Part (1)
+            res1 = C / (C + dist_pz)
+            res1 = tf.multiply(res1, 1. - diag_pz)
+            res1 = tf.reduce_sum(res1) / (n * n - n)
+            # res1 = tf.Print(res1, [res1], 'Pz vs Pz:')
+            # Part (2)
+            res2 = C / (C + dist_pz_qhat)
+            res2 = tf.reduce_sum(res2) / (n * n) / NUMCODES
+            # res2 = tf.Print(res2, [res2], 'Pz vs Qhat:')
+            # Part (3)
+            res3 = C / (C + dist_qhat)
+            res3 = tf.multiply(res3, 1. - mask)
+            res3 = tf.reduce_sum(res3) * (N - 1) / N / n / (n - 1) / (NUMCODES ** 2)
+            res3 = tf.Print(res3, [res3], 'Qhat vs Qhat off diag:')
+            # Part (4) 
+            res4 = C / (C + dist_qhat)
+            res4 = tf.multiply(res4, mask - diag_qhat)
+            res4 = tf.reduce_sum(res4) / n / NUMCODES / (NUMCODES - 1) / N
+            res4 = tf.Print(res4, [res4], 'Qhat vs Qhat diag:')
+            stat += weight * (res1 - 2 * res2 + res3 + res4)
+
+    return stat
